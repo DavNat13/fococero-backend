@@ -1,0 +1,42 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "API FocoCero - Auth",
+    "version": "1.0.0",
+    "description": "Documentación del Microservicio de Autenticación"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001",
+      "description": "Servidor de Desarrollo"
+    }
+  ],
+  "paths": {
+    "/api/auth/register-guest": {
+      "post": {
+        "summary": "Registra un nuevo usuario invitado",
+        "tags": ["Autenticación"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rut": { "type": "string", "example": "19.123.456-K" },
+                  "nombre": { "type": "string", "example": "Juan" },
+                  "apellido": { "type": "string", "example": "Pérez" },
+                  "telefono": { "type": "string", "example": "987654321" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Usuario creado exitosamente" },
+          "400": { "description": "Error de validación (Ej: RUT inválido)" }
+        }
+      }
+    }
+  }
+}
