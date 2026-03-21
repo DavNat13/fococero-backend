@@ -1,39 +1,49 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import { AuthService } from '../services/auth.service';
 
 export class AuthController {
     
-    // Método para iniciar sesión
-    static async login(req: Request, res: Response): Promise<void> {
+    static async registerGuest(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { email, password } = req.body;
+            // Mandamos los datos al servicio (la capa lógica)
+            const result = await AuthService.registerGuestUser(req.body);
             
-            // TODO: Aquí luego buscaremos en la base de datos
-            if (!email || !password) {
-                res.status(400).json({ error: 'Faltan credenciales' });
+            if (!result.isNew) {
+                res.status(200).json({ ok: true, msg: 'Usuario ya identificado', usuario: result.user });
                 return;
             }
 
-            res.status(200).json({ 
-                mensaje: 'Login exitoso',
-                token: 'aqui_ira_un_token_jwt_real' 
-            });
-        } catch (error) {
-            res.status(500).json({ error: 'Error interno del servidor' });
+            res.status(201).json({ ok: true, msg: 'Invitado registrado', usuario: result.user });
+        } catch (error: any) {
+            // Si es un error de validación nuestro (ej. "RUT inválido"), respondemos con 400
+            if (error.message) {
+                res.status(400).json({ ok: false, msg: error.message });
+                return;
+            }
+            // Si es un error crítico del servidor, lo pasamos al Global Error Handler
+            next(error);
         }
     }
 
-    // Método para registrar usuario
-    static async register(req: Request, res: Response): Promise<void> {
+    static async registerFull(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { nombre, email, password } = req.body;
-            
-            // TODO: Aquí luego insertaremos en PostgreSQL
-            res.status(201).json({ 
-                mensaje: 'Usuario creado exitosamente',
-                usuario: { nombre, email } 
-            });
-        } catch (error) {
-            res.status(500).json({ error: 'Error al registrar usuario' });
+            // El servicio procesa el Token de Firebase
+            const newUser = await AuthService.registerFullUser(req.body);
+            res.status(201).json({ ok: true, msg: 'Cuenta creada con éxito', usuario: newUser });
+        } catch (error: any) {
+            if (error.message) {
+                res.status(400).json({ ok: false, msg: error.message });
+                return;
+            }
+            next(error);
+        }
+    }
+
+    static async login(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            res.status(200).json({ ok: true, msg: 'Servicio de autenticación en línea' });
+        } catch (error: any) {
+            next(error);
         }
     }
 }

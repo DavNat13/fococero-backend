@@ -1,17 +1,23 @@
 import { Pool } from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { envs } from './envs'; // Importamos nuestro objeto validado
 
 export const pool = new Pool({
-    user: process.env.DB_USER,
-    password: process.env.DB_PASS,
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT),
-    database: process.env.DB_NAME,
+    user: envs.DB_USER,
+    password: envs.DB_PASSWORD, 
+    host: envs.DB_HOST,
+    port: Number(envs.DB_PORT),
+    database: envs.DB_NAME,
+    
+    max: 20, 
+    idleTimeoutMillis: 30000, 
+    connectionTimeoutMillis: 2000, 
 });
 
-// Comprobar la conexión al iniciar
-pool.connect()
-    .then(() => console.log('📦 Conectado exitosamente a PostgreSQL (FocoCero DB)'))
-    .catch((err: any) => console.error('❌ Error conectando a la base de datos:', err));
+pool.on('connect', () => {
+    console.log('📦 Conectado exitosamente a PostgreSQL (FocoCero DB)');
+});
+
+pool.on('error', (err: Error) => {
+    console.error('❌ Error fatal o pérdida de conexión con PostgreSQL:', err.message);
+    process.exit(-1); 
+});
