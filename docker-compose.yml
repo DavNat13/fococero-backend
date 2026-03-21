@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  db-fococero:
+    image: postgis/postgis:15-3.3
+    container_name: fococero-db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - fococero_pgdata:/var/lib/postgresql/data
+    restart: always
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: fococero-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASS}
+    ports:
+      - "5050:80"
+    depends_on:
+      - db-fococero
+    restart: always
+
+volumes:
+  fococero_pgdata:
+    name: fococero_pgdata
