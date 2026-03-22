@@ -1,66 +1,139 @@
 import { pool } from '../config/database';
 import { Usuario } from '../models/user.model';
-import { UserRole } from '../models/user.enum'; 
+import { UserRole, UserStatus } from '../models/user.enum';
+
 export class UserRepository {
     
+    // --- 🔍 MÉTODOS DE BÚSQUEDA (READ) ---
+
+    /**
+     * Obtiene todos los usuarios. 
+     * Ideal para el panel de administración de FocoCero.
+     */
+    static async findAll(): Promise<Usuario[]> {
+        const query = 'SELECT * FROM usuarios ORDER BY created_at DESC';
+        const result = await pool.query(query);
+        return result.rows;
+    }
+
+    static async findById(id: number): Promise<Usuario | null> {
+        const query = 'SELECT * FROM usuarios WHERE id = $1';
+        const result = await pool.query(query, [id]);
+        return result.rows.length ? result.rows[0] : null;
+    }
+
     static async findByRut(rut: string): Promise<Usuario | null> {
-        const result = await pool.query('SELECT * FROM usuarios WHERE rut = $1', [rut]);
+        const query = 'SELECT * FROM usuarios WHERE rut = $1';
+        const result = await pool.query(query, [rut]);
         return result.rows.length ? result.rows[0] : null;
     }
 
-    //  Este método es útil para el registro completo, donde queremos asegurarnos de que ni el RUT ni el Firebase UID estén repetidos
-    static async findByFirebaseUidOrRut(uid: string, rut: string): Promise<Usuario | null> {
-        const result = await pool.query(
-            'SELECT * FROM usuarios WHERE firebase_uid = $1 OR rut = $2', 
-            [uid, rut]
-        );
-        return result.rows.length ? result.rows[0] : null;
-    }
-
-    // Método específico para buscar por Firebase UID (útil para el middleware de autenticación)
     static async findByFirebaseUid(uid: string): Promise<Usuario | null> {
-        const result = await pool.query('SELECT * FROM usuarios WHERE firebase_uid = $1', [uid]);
+        const query = 'SELECT * FROM usuarios WHERE firebase_uid = $1';
+        const result = await pool.query(query, [uid]);
         return result.rows.length ? result.rows[0] : null;
     }
+
+    static async findByEmail(email: string): Promise<Usuario | null> {
+        const query = 'SELECT * FROM usuarios WHERE email = $1';
+        const result = await pool.query(query, [email]);
+        return result.rows.length ? result.rows[0] : null;
+    }
+
+    /**
+     * Búsqueda compuesta para evitar duplicidad de identidad en el sistema.
+     */
+    static async findByFirebaseUidOrRut(uid: string, rut: string): Promise<Usuario | null> {
+        const query = 'SELECT * FROM usuarios WHERE firebase_uid = $1 OR rut = $2';
+        const result = await pool.query(query, [uid, rut]);
+        return result.rows.length ? result.rows[0] : null;
+    }
+
+    // --- ✍️ MÉTODOS DE CREACIÓN (CREATE) ---
 
     static async createGuest(data: Partial<Usuario>): Promise<Usuario> {
         const query = `
-            INSERT INTO usuarios (rut, nombre, apellido, telefono, rol) 
-            VALUES ($1, $2, $3, $4, $5) 
-            RETURNING id, rut, nombre, apellido, rol
+            INSERT INTO usuarios (rut, nombre, apellido, telefono, rol, estado) 
+            VALUES ($1, $2, $3, $4, $5, $6) 
+            RETURNING *
         `;
         const result = await pool.query(query, [
             data.rut, 
             data.nombre, 
             data.apellido, 
             data.telefono, 
-            UserRole.INVITADO // Asignamos el rol de INVITADO por defecto a los registros de invitado
+            UserRole.INVITADO,
+            UserStatus.ACTIVO
         ]);
         return result.rows[0];
     }
 
     static async createFullUser(data: Partial<Usuario>): Promise<Usuario> {
         const query = `
-            INSERT INTO usuarios (rut, nombre, apellido, telefono, email, firebase_uid, rol, verificado) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, true) 
-            RETURNING id, rut, nombre, email, rol
+            INSERT INTO usuarios (rut, nombre, apellido, email, telefono, firebase_uid, rol, estado) 
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+            RETURNING *
         `;
         const result = await pool.query(query, [
             data.rut, 
             data.nombre, 
             data.apellido, 
+            data.email,
             data.telefono, 
-            data.email, 
             data.firebase_uid,
-            UserRole.USUARIO // Asignamos el rol de USUARIO por defecto a los registros completos
+            UserRole.USUARIO,
+            UserStatus.ACTIVO
         ]);
         return result.rows[0];
     }
 
+    // --- 🛠️ MÉTODOS DE ACTUALIZACIÓN (UPDATE) ---
+
+    /**
+     * ACTUALIZACIÓN DINÁMICA: 
+     * Este es el "corazón" del CRUD avanzado. Permite actualizar cualquier campo 
+     * del usuario sin necesidad de crear un método por cada campo.
+     */
+    static async update(id: number, data: Partial<Usuario>): Promise<Usuario | null> {
+        const entries = Object.entries(data).filter(([_, v]) => v !== undefined);
+        if (entries.length === 0) return null;
+
+        const setClause = entries
+            .map(([key], index) => `${key} = $${index + 2}`)
+            .join(', ');
+        
+        const values = entries.map(([_, v]) => v);
+        
+        const query = `
+            UPDATE usuarios 
+            SET ${setClause}, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = $1 
+            RETURNING *
+        `;
+
+        const result = await pool.query(query, [id, ...values]);
+        return result.rows.length ? result.rows[0] : null;
+    }
+
+    /**
+     * Método especializado para brigadistas y personal en terreno.
+     * Actualizar el token FCM es vital para que las alertas de incendio lleguen.
+     */
     static async updateFcmToken(userId: number, fcmToken: string): Promise<void> {
-        await pool.query(
-            'UPDATE usuarios SET fcm_token = $1, actualizado_en = NOW() WHERE id = $2', 
-            [fcmToken, userId]
-        );
+        const query = 'UPDATE usuarios SET fcm_token = $1, updated_at = NOW() WHERE id = $2';
+        await pool.query(query, [fcmToken, userId]);
+    }
+
+    // --- 🗑️ MÉTODOS DE ELIMINACIÓN (DELETE) ---
+
+    /**
+     * Eliminación física del registro. 
+     * En sistemas gubernamentales/emergencia se suele usar "Soft Delete" (cambiar estado a 'eliminado'),
+     * pero aquí implementamos el Hard Delete según lo solicitado.
+     */
+    static async delete(id: number): Promise<boolean> {
+        const query = 'DELETE FROM usuarios WHERE id = $1';
+        const result = await pool.query(query, [id]);
+        return (result.rowCount ?? 0) > 0;
     }
 }

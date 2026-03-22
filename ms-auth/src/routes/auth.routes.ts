@@ -1,30 +1,43 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller';
-import { validateFirebaseToken } from '../middlewares/auth.middleware'; // Importamos nuestro guardia Enterprise
+import { validateFirebaseToken } from '../middlewares/auth.middleware';
+import { authorizeRole } from '../middlewares/role.middleware'; 
+import { UserRole } from '../models/user.enum';
 
 const router = Router();
 
-// ==========================================
-// 🔓 RUTAS PÚBLICAS (No requieren token previo)
-// ==========================================
+// ============================================================================
+// 🔓 ZONA PÚBLICA (Acceso Libre)
+// ============================================================================
+// Rutas de entrada al sistema FocoCero. No requieren token previo.
 
-// Ruta para el registro rápido de ciudadanos en medio de una emergencia
 router.post('/register-guest', AuthController.registerGuest);
+router.post('/register-full', AuthController.registerFull);
 
-// Ruta para crear una cuenta completa (El frontend nos envía el token recién creado)
-router.post('/register', AuthController.registerFull);
+// ============================================================================
+// 🔒 ZONA PRIVADA (Requiere Identidad Verificada)
+// ============================================================================
+// Al usar router.use() aquí, TODAS las rutas que se definan debajo de esta 
+// línea requerirán obligatoriamente un token de Firebase válido.
+router.use(validateFirebaseToken);
 
+// --- Gestión de Mi Perfil ---
+router.get('/me', AuthController.getProfile);
+router.patch('/me', AuthController.updateProfile);
+router.patch('/me/fcm-token', AuthController.syncFcmToken);
 
-// ==========================================
-// 🔒 RUTAS PROTEGIDAS (Requieren Token de Firebase válido)
-// ==========================================
+// ============================================================================
+// 🔴 ZONA DE ALTA SEGURIDAD (Administración FocoCero)
+// ============================================================================
+// Además de estar validados por Firebase, estas rutas exigen que el usuario 
+// tenga explícitamente el rol de ADMIN en la base de datos de PostgreSQL.
 
-// El Login ahora valida el token de Firebase automáticamente gracias al middleware.
-// Si el token es falso o expiró, el middleware rebota la petición antes de llegar al controlador.
-router.post('/login', validateFirebaseToken, AuthController.login);
+// Creamos un alias para el middleware de roles para que el código quede ultra limpio
+const adminGuard = authorizeRole([UserRole.ADMIN]);
 
-// NUEVO: Ruta estándar Enterprise para obtener el perfil del usuario activo.
-// La dejamos comentada para implementarla en el futuro, pero la ruta ya queda diseñada.
-// router.get('/me', validateFirebaseToken, AuthController.getProfile);
+router.get('/users', adminGuard, AuthController.getAllUsers);
+router.patch('/users/:id/role', adminGuard, AuthController.changeRole);
+router.patch('/users/:id/status', adminGuard, AuthController.changeStatus);
+router.delete('/users/:id', adminGuard, AuthController.deleteUser);
 
 export default router;

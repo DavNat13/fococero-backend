@@ -1,41 +1,57 @@
 import { Request, Response, NextFunction } from 'express';
 
+/**
+ * Middleware: Manejador Global de Errores (Error Catcher)
+ * Evita que la aplicación colapse (crash) centralizando las respuestas de error.
+ */
 export const errorHandler = (
     err: any, 
     _req: Request, 
     res: Response, 
     next: NextFunction
 ): void => {
-    // 1. Log interno para nosotros (puedes ver la traza completa en la consola)
-    console.error(`🚨 [Error Global]:`, err);
+    // 1. Log interno del servidor (Para trazabilidad en Docker/AWS)
+    console.error(`🚨 [Error Global Handler]:`, err);
 
     let statusCode = err.statusCode || 500;
-    let message = err.message || 'Error interno del servidor. Contacte al administrador.';
+    let message = err.message || 'Error interno del servidor. Contacte al equipo de FocoCero.';
 
-    // --- OPTIMIZACIÓN FIREBASE ENTERPRISE ---
-    // Firebase Admin SDK devuelve errores con una propiedad 'code' que empieza con 'auth/'
+    // --- 🟢 EVALUACIÓN DE ERRORES FIREBASE ---
     if (err.code && err.code.startsWith('auth/')) {
-        statusCode = 401; // 401 Unauthorized
+        statusCode = 401; 
         
         switch (err.code) {
             case 'auth/id-token-expired':
-                message = 'Tu sesión ha expirado. Por favor, inicia sesión nuevamente.';
+                message = 'Tu sesión ha expirado por seguridad. Por favor, inicia sesión nuevamente.';
                 break;
             case 'auth/argument-error':
             case 'auth/invalid-id-token':
-                message = 'Token de autenticación inválido o corrupto.';
+                message = 'El token de acceso proporcionado está corrupto o es inválido.';
                 break;
             case 'auth/user-not-found':
-                message = 'El usuario asociado a este token ya no existe en Firebase.';
+                message = 'La credencial vinculada a este token ya no existe en los registros de Google.';
                 break;
             default:
-                message = 'Error de autenticación. Verifica tus credenciales.';
+                message = 'Fallo en la validación de identidad. Verifica tus credenciales.';
         }
     }
 
-    // 2. Respuesta segura y estandarizada para el Frontend
+    // --- 🔵 EVALUACIÓN DE ERRORES POSTGRESQL (pg) ---
+    // Código 23505 = unique_violation (Ej: Se intenta registrar un RUT o Email duplicado)
+    if (err.code === '23505') {
+        statusCode = 409; // 409 Conflict
+        message = 'Conflicto de datos: El registro que intentas ingresar ya existe en el sistema.';
+    }
+    
+    // Código 22P02 = invalid_text_representation (Ej: Enviar texto donde va un número)
+    if (err.code === '22P02') {
+        statusCode = 400; // 400 Bad Request
+        message = 'Formato de datos incorrecto en la base de datos (Ej: Letras en campo numérico).';
+    }
+
+    // --- 🔴 RESPUESTA ESTANDARIZADA AL FRONTEND ---
     res.status(statusCode).json({
         ok: false,
-        msg: message
+        error: message
     });
 };
