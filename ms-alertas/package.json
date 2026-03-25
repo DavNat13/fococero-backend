@@ -1,0 +1,21 @@
+{
+  "name": "fococero-ms-alertas",
+  "version": "1.0.0",
+  "description": "Microservicio de Alertas a la Comunidad - FocoCero",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.1",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.1",
+    "pg": "^8.20.0",
+    "swagger-ui-express": "^5.0.1"
+  }
+}
