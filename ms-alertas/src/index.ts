@@ -7,13 +7,13 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
-// import swaggerUi from 'swagger-ui-express'; // Lo descomentaremos cuando hagamos el Swagger
+import swaggerUi from 'swagger-ui-express';
 
 // --- IMPORTACIONES INTERNAS ---
 import { pool, testDbConnection } from './config/database';
 import './config/firebase'; // Inicializa Firebase Admin automáticamente
-// import alertasRoutes from './routes/alertas.routes'; // Próximo paso
-// import { errorHandler } from './middlewares/error.middleware'; // Próximo paso
+import alertasRoutes from './routes/alerta.routes';
+import { errorHandler } from './middlewares/error.middleware';
 
 const app: Application = express();
 
@@ -23,8 +23,8 @@ app.set('trust proxy', 1);
 // ============================================================================
 // 📖 1. DOCUMENTACIÓN Y MAPA DE BATALLA (SWAGGER)
 // ============================================================================
-// import * as swaggerDocument from './docs/swagger.json';
-// app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+import * as swaggerDocument from './docs/swagger.json';
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // ============================================================================
 // 🛡️ 2. SEGURIDAD PERIMETRAL Y PARSERS
@@ -59,12 +59,12 @@ app.get('/api/health', (req: Request, res: Response) => {
 });
 
 // Toda la arquitectura de alertas se conectará aquí (Lo haremos en los siguientes pasos)
-// app.use('/api/alertas', alertasRoutes);
+app.use('/api/alertas', alertasRoutes);
 
 // ============================================================================
 // 🚨 4. MANEJADOR DE ERRORES GLOBAL (DEBE IR AL FINAL)
 // ============================================================================
-// app.use(errorHandler);
+app.use(errorHandler);
 
 // ============================================================================
 // 🚀 5. INICIALIZACIÓN DEL SERVIDOR
@@ -87,7 +87,7 @@ const server = app.listen(PORT, async () => {
     }
 
     console.log(`🛡️  Seguridad: Limitador y Escudos Activos`);
-    // console.log(`📖 Documentación: http://localhost:${PORT}/api/docs`);
+    console.log(`📖 Documentación: http://localhost:${PORT}/api/docs`);
     console.log(`====================================================\n`);
 });
 

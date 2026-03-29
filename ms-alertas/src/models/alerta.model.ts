@@ -17,6 +17,7 @@ export enum GravedadAlerta {
     CRITICA = 'CRITICA',
 }
 
+// 🛡️ Sincronizado exactamente con el TYPE estado_alerta de Postgres
 export enum EstadoAlerta {
     REPORTADA = 'REPORTADA',
     EN_REVISION = 'EN_REVISION',
@@ -41,21 +42,10 @@ export interface IAlerta {
 
     descripcion: string;
     imagenes?: string[];
-
     ubicacion: IPoint;
-    metadata?: Record<string, any>;
+    metadata?: any;
 
     fecha_creacion?: Date;
     fecha_actualizacion?: Date;
     eliminado_en?: Date | null;
-}
-
-export interface IHistorialAlerta {
-    id?: string;
-    alerta_id: string;
-    estado_anterior?: EstadoAlerta | null;
-    estado_nuevo: EstadoAlerta;
-    usuario_modificador_id?: string | null;
-    comentario?: string | null;
-    fecha_cambio?: Date;
 }
