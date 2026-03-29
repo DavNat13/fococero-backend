@@ -8,8 +8,8 @@ on:
   pull_request:
     branches: ["main", "develop"]
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+# 🚀 Hemos eliminado la variable env: FORCE_JAVASCRIPT_ACTIONS_TO_NODE24
+# para que GitHub use el motor nativo de las acciones.
 
 jobs:
   build-and-test:
@@ -19,21 +19,25 @@ jobs:
         working-directory: ./ms-alertas
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      # v4 es la versión estable actual que ya soporta los runners modernos
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: "./ms-alertas/package-lock.json"
 
-      - name: Install
+      - name: Install dependencies
         run: npm ci
 
-      - name: Lint
+      - name: Run Linter
         run: npm run lint
 
-      - name: Test
+      - name: Run Tests
         run: npm run test
 
-      - name: Build
+      - name: Build Project
         run: npm run build
