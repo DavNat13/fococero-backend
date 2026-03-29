@@ -1,0 +1,228 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "API FocoCero - MS-Alertas",
+        "description": "Microservicio para la gestión y geolocalización de alertas tempranas de incendios.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/api/alertas",
+            "description": "Servidor Local (Desarrollo)"
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Ingresa tu token de Firebase aquí (sin la palabra Bearer)."
+            }
+        }
+    },
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "paths": {
+        "/": {
+            "post": {
+                "summary": "Crear nueva alerta",
+                "description": "Registra una alerta geolocalizada en el mapa. Requiere autenticación.",
+                "tags": ["Alertas"],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "descripcion": {
+                                        "type": "string",
+                                        "example": "Humo denso visible cerca de la ruta 68."
+                                    },
+                                    "ubicacion": {
+                                        "type": "object",
+                                        "properties": {
+                                            "type": { "type": "string", "example": "Point" },
+                                            "coordinates": {
+                                                "type": "array",
+                                                "items": { "type": "number" },
+                                                "example": [-71.53, -33.04]
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": { "description": "Alerta registrada con éxito." },
+                    "400": { "description": "Error de validación (Zod)." },
+                    "401": { "description": "No autorizado." }
+                }
+            },
+            "get": {
+                "summary": "Panel general (Todas las alertas)",
+                "description": "Devuelve todas las alertas registradas en el sistema. Requiere rol ADMIN o BRIGADISTA.",
+                "tags": ["Consultas"],
+                "responses": {
+                    "200": { "description": "Lista completa de alertas." },
+                    "401": { "description": "No autorizado." },
+                    "403": { "description": "Acceso denegado por rol." }
+                }
+            }
+        },
+        "/mis-alertas": {
+            "get": {
+                "summary": "Historial del ciudadano",
+                "description": "Busca todas las alertas reportadas por el usuario autenticado.",
+                "tags": ["Consultas"],
+                "responses": {
+                    "200": { "description": "Lista de alertas del usuario." },
+                    "401": { "description": "No autorizado." }
+                }
+            }
+        },
+        "/cercanas": {
+            "get": {
+                "summary": "Obtener alertas cercanas",
+                "description": "Busca alertas activas dentro de un radio en metros usando PostGIS.",
+                "tags": ["Consultas"],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "lng",
+                        "required": true,
+                        "schema": { "type": "number", "example": -71.53 }
+                    },
+                    {
+                        "in": "query",
+                        "name": "lat",
+                        "required": true,
+                        "schema": { "type": "number", "example": -33.04 }
+                    },
+                    {
+                        "in": "query",
+                        "name": "radio",
+                        "required": false,
+                        "schema": { "type": "number", "example": 5000 }
+                    }
+                ],
+                "responses": {
+                    "200": { "description": "Lista de alertas cercanas." },
+                    "400": { "description": "Coordenadas inválidas." },
+                    "401": { "description": "No autorizado." }
+                }
+            }
+        },
+        "/{id}": {
+            "get": {
+                "summary": "Ver detalle de alerta",
+                "description": "Obtiene la información detallada de una alerta específica por su ID.",
+                "tags": ["Consultas"],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "responses": {
+                    "200": { "description": "Detalle de la alerta." },
+                    "404": { "description": "Alerta no encontrada." }
+                }
+            },
+            "delete": {
+                "summary": "Eliminar alerta",
+                "description": "Borrado lógico del mapa. Requiere rol ADMIN.",
+                "tags": ["Administrativo"],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "responses": {
+                    "200": { "description": "Alerta eliminada." },
+                    "403": { "description": "Acceso denegado por rol." },
+                    "404": { "description": "Alerta no encontrada." }
+                }
+            }
+        },
+        "/{id}/estado": {
+            "patch": {
+                "summary": "Cambiar estado de alerta",
+                "description": "Actualiza el estado (EJ: PENDIENTE, EN_PROCESO, RESUELTA). Requiere rol ADMIN o BRIGADISTA.",
+                "tags": ["Operativo"],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "estado": { "type": "string", "example": "EN_PROCESO" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "Estado actualizado." },
+                    "400": { "description": "Error de validación de estado." },
+                    "403": { "description": "Acceso denegado por rol." },
+                    "404": { "description": "Alerta no encontrada." }
+                }
+            }
+        },
+        "/{id}/verificar": {
+            "post": {
+                "summary": "Verificación táctica en terreno",
+                "description": "Endpoint usado por brigadistas para confirmar si una alerta es fuego real o falsa alarma. Requiere rol ADMIN o BRIGADISTA.",
+                "tags": ["Operativo"],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "esFuegoConfirmado": { "type": "boolean", "example": true }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "Alerta verificada y estado actualizado." },
+                    "400": { "description": "Falta parámetro booleano." },
+                    "403": { "description": "Acceso denegado por rol." },
+                    "404": { "description": "Alerta no encontrada." }
+                }
+            }
+        }
+    }
+}
