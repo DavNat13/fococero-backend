@@ -1,48 +1,40 @@
 # ==============================================================================
 # 🏗️ ETAPA 1: CONSTRUCCIÓN (Builder)
 # ==============================================================================
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copiamos dependencias primero para aprovechar la caché de Docker
+# Copiamos archivos de dependencias para aprovechar el cache de capas
 COPY package*.json ./
-# Usamos 'ci' para una instalación exacta, limpia y más rápida basada en el lockfile
+# 'npm ci' es más rápido y estricto que 'npm install' para entornos de CI/CD
 RUN npm ci
 
-# Copiamos el código fuente y compilamos TypeScript a JavaScript
+# Copiamos el código fuente y compilamos TS a JS
 COPY . .
 RUN npm run build
 
 # ==============================================================================
-# 🚀 ETAPA 2: PRODUCCIÓN (Imagen final optimizada y segura)
+# 🚀 ETAPA 2: PRODUCCIÓN (Imagen final ligera)
 # ==============================================================================
-FROM node:20-alpine
+FROM node:22-alpine
 
-# Metadatos
 LABEL maintainer="FocoCero - Inteligencia Geoespacial"
-
-# Establecemos el entorno estricto de producción
 ENV NODE_ENV=production
 
 WORKDIR /app
 
-# Instalamos SOLO las dependencias operativas y limpiamos la caché residual
+# Instalamos solo dependencias de producción para ahorrar espacio
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-# Copiamos los binarios compilados de la Etapa 1
+# Traemos solo lo compilado desde la etapa de builder
 COPY --from=builder /app/dist ./dist
 
-# 🛡️ Escudo de Archivos Estáticos: Aseguramos que el Swagger exista en producción
-# (A veces tsc ignora los JSON dependiendo de la configuración del tsconfig)
-COPY --from=builder /app/src/docs/swagger.json ./dist/docs/swagger.json
-
-# 🛡️ Seguridad: Evitamos ejecutar el contenedor como ROOT
+# 🛡️ Seguridad: No ejecutamos como ROOT
 USER node
 
-# Exponemos el puerto oficial del microservicio
+# ms-geo suele usar el puerto 3002 (ajusta si usas otro)
 EXPOSE 3002
 
-# Comando de arranque táctico
 CMD ["node", "dist/index.js"]
