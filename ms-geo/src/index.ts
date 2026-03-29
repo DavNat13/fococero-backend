@@ -22,7 +22,7 @@ app.set('trust proxy', 1);
 // 📖 1. DOCUMENTACIÓN Y MAPA DE BATALLA (SWAGGER)
 // ============================================================================
 // Usamos require() nativo para evitar que TypeScript rompa el formato del JSON
-const swaggerDocument = require('./docs/swagger.json');
+import * as swaggerDocument from './docs/swagger.json';
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 
@@ -72,10 +72,10 @@ const server = app.listen(PORT, async () => {
     console.log(`📡 Puerto: ${PORT}`);
     
     // Verificamos que el motor espacial esté operativo
-    try {
+try {
         await testDbConnection();
     } catch (error) {
-        console.error(`⚠️ Advertencia: No se pudo verificar la versión de PostGIS al inicio.`);
+        console.error(`⚠️ Advertencia: No se pudo verificar la versión de PostGIS al inicio. Detalle:`, error);
     }
 
     console.log(`🛡️  Seguridad: Limitador y Escudos Activos`);
