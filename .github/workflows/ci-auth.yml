@@ -1,0 +1,38 @@
+name: CI/CD Pipeline - ms-auth
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'ms-auth/**' # Solo se ejecuta si hay cambios en este microservicio
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./ms-auth
+
+    steps:
+    - name: Descargar el código
+      uses: actions/checkout@v3
+
+    - name: Configurar Node.js 20
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+
+    - name: Instalar dependencias
+      run: npm ci
+
+    - name: Revisar estilo de código (Linter)
+      run: npm run lint
+
+    - name: Ejecutar pruebas (Jest)
+      run: npm run test
+
+    - name: Compilar TypeScript (Build)
+      run: npm run build
