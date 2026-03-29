@@ -1,20 +1,28 @@
-import globals from "globals";
-import pluginJs from "@eslint/js";
-import tseslint from "typescript-eslint";
+import globals from 'globals';
+import pluginJs from '@eslint/js'; // <--- Falta esta línea
+import tseslint from 'typescript-eslint';
 
+/** @type {import('eslint').Linter.Config[]} */
 export default [
-  { 
-    files: ["**/*.{js,mjs,cjs,ts}"],
-    languageOptions: { globals: { ...globals.node, ...globals.jest } }
-  },
-  pluginJs.configs.recommended,
-  ...tseslint.configs.recommended,
-  {
-    rules: {
-      "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_|next" }],
-      "@typescript-eslint/no-explicit-any": "warn",
-      "preserve-caught-error": "off",
-      "no-console": "off"
+    {
+        // Aplicar a archivos JS y TS
+        files: ['**/*.{js,mjs,cjs,ts}'],
+        languageOptions: {
+            globals: {
+                ...globals.node,
+                ...globals.jest,
+            },
+        },
     },
-  },
+    // Configuración recomendada de ESLint para JS
+    pluginJs.configs.recommended,
+    // Configuración recomendada para TypeScript
+    ...tseslint.configs.recommended,
+    {
+        rules: {
+            '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_|next' }],
+            '@typescript-eslint/no-explicit-any': 'warn',
+            'no-console': 'off',
+        },
+    },
 ];
