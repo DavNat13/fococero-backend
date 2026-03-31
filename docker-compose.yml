@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   db-fococero:
@@ -12,6 +12,10 @@ services:
       - "5432:5432"
     volumes:
       - fococero_pgdata:/var/lib/postgresql/data
+      # 🛡️ MAGIA DE INICIALIZACIÓN: Mapeamos los scripts al cerebro de Postgres
+      - ./ms-auth/init.sql:/docker-entrypoint-initdb.d/01-init-auth.sql
+      - ./ms-geo/database/init.sql:/docker-entrypoint-initdb.d/02-init-geo.sql
+      - ./ms-alertas/database/init.sql:/docker-entrypoint-initdb.d/03-init-alertas.sql
     restart: always
 
   pgadmin:

@@ -1,0 +1,182 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "API FocoCero - Inteligencia Geoespacial",
+    "version": "1.0.0",
+    "description": "Microservicio (ms-geo) responsable de la ingesta de coordenadas, cálculos espaciales y gestión operativa de los focos de incendio."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3002",
+      "description": "Servidor de Desarrollo (ms-geo)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Ingresa el token JWT generado por Firebase para autenticar acciones operativas."
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean", "example": false },
+          "error": { "type": "string", "example": "Mensaje descriptivo del error devuelto por el errorHandler" }
+        }
+      },
+      "FocoIncendio": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "example": "123e4567-e89b-12d3-a456-426614174000" },
+          "latitud": { "type": "number", "format": "float", "example": -33.4489 },
+          "longitud": { "type": "number", "format": "float", "example": -70.6693 },
+          "estado": { "type": "string", "example": "Reportado" },
+          "detalles": { "type": "string", "example": "Humo visible cerca de la carretera" }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Ciudadano",
+      "description": "Rutas públicas de telemetría y reportes (No requieren Token)"
+    },
+    {
+      "name": "Operativo",
+      "description": "Gestión táctica de la emergencia y actualización de estados (Requiere Token)"
+    }
+  ],
+  "paths": {
+    "/api/geo": {
+      "post": {
+        "summary": "Reportar un nuevo foco de incendio",
+        "tags": ["Ciudadano"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["latitud", "longitud"],
+                "properties": {
+                  "latitud": { "type": "number", "example": -35.4264 },
+                  "longitud": { "type": "number", "example": -71.6554 },
+                  "detalles": { "type": "string", "example": "Fuego en pastizales, avance rápido." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { 
+            "description": "Foco reportado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean", "example": true },
+                    "msg": { "type": "string", "example": "Incendio reportado y geolocalizado con éxito." },
+                    "data": { "$ref": "#/components/schemas/FocoIncendio" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Datos inválidos (Validación fallida)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "500": { "description": "Error interno del servidor", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "get": {
+        "summary": "Obtener el mapa global de focos",
+        "tags": ["Ciudadano"],
+        "responses": {
+          "200": {
+            "description": "Lista de todos los focos activos/inactivos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/FocoIncendio" }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": { "description": "Error al consultar la base de datos", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/geo/{id}": {
+      "get": {
+        "summary": "Obtener detalles de un foco específico",
+        "tags": ["Ciudadano"],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" }, "description": "ID único del foco" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datos del foco solicitado",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean", "example": true }, "data": { "$ref": "#/components/schemas/FocoIncendio" } } } } }
+          },
+          "404": { "description": "Foco no encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar un reporte (Soft/Hard Delete)",
+        "tags": ["Operativo"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Reporte removido del sistema operativo" },
+          "401": { "description": "No autorizado (Falta token o es inválido)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Permisos insuficientes (Rol incorrecto)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/geo/{id}/estado": {
+      "patch": {
+        "summary": "Actualizar estado operativo del foco",
+        "tags": ["Operativo"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "estado": { 
+                    "type": "string", 
+                    "example": "En Combate", 
+                    "enum": ["Reportado", "En Evaluación", "En Combate", "Controlado", "Extinguido", "Falsa Alarma"] 
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Estado actualizado con éxito" },
+          "400": { "description": "Estado inválido o faltante", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "401": { "description": "No autorizado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "404": { "description": "Foco no encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    }
+  }
+}

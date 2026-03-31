@@ -1,0 +1,50 @@
+{
+    "name": "ms-geo",
+    "version": "1.0.0",
+    "description": "Microservicio de Geolocalización Espacial - FocoCero",
+    "main": "dist/index.js",
+    "scripts": {
+        "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "test": "jest",
+        "lint": "eslint \"src/**/*.ts\"",
+        "format": "prettier --write \"src/**/*.ts\""
+    },
+    "dependencies": {
+        "cors": "^2.8.6",
+        "dotenv": "^17.3.1",
+        "express": "^5.2.1",
+        "express-rate-limit": "^8.3.1",
+        "firebase-admin": "^13.7.0",
+        "helmet": "^8.1.0",
+        "morgan": "^1.10.1",
+        "pg": "^8.20.0",
+        "swagger-ui-express": "^5.0.1"
+    },
+    "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@jest/globals": "^30.3.0",
+        "@types/cors": "^2.8.19",
+        "@types/express": "^5.0.6",
+        "@types/jest": "^30.0.0",
+        "@types/morgan": "^1.9.10",
+        "@types/node": "^25.5.0",
+        "@types/pg": "^8.20.0",
+        "@types/supertest": "^7.2.0",
+        "@types/swagger-ui-express": "^4.1.8",
+        "@typescript-eslint/eslint-plugin": "^8.57.1",
+        "@typescript-eslint/parser": "^8.57.1",
+        "eslint": "^10.1.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-prettier": "^5.5.5",
+        "globals": "^17.4.0",
+        "jest": "^30.3.0",
+        "prettier": "^3.8.1",
+        "supertest": "^7.2.2",
+        "ts-jest": "^29.4.6",
+        "ts-node-dev": "^2.0.0",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.57.2"
+    }
+}

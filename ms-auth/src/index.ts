@@ -78,3 +78,5 @@ const gracefulShutdown = async () => {
 // Escuchamos las señales de apagado
 process.on('SIGTERM', gracefulShutdown); // Señal típica de Docker/Kubernetes
 process.on('SIGINT', gracefulShutdown);  // Señal al presionar Ctrl+C en la terminal
+
+// Sincronización de pipeline
