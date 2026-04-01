@@ -6,16 +6,17 @@ services:
     container_name: fococero-db
     environment:
       POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - fococero_pgdata:/var/lib/postgresql/data
       # 🛡️ MAGIA DE INICIALIZACIÓN: Mapeamos los scripts al cerebro de Postgres
       - ./ms-auth/init.sql:/docker-entrypoint-initdb.d/01-init-auth.sql
       - ./ms-geo/database/init.sql:/docker-entrypoint-initdb.d/02-init-geo.sql
       - ./ms-alertas/database/init.sql:/docker-entrypoint-initdb.d/03-init-alertas.sql
+      - ./ms-reportes/database/init.sql:/docker-entrypoint-initdb.d/04-init-reportes.sql
     restart: always
 
   pgadmin:
@@ -23,7 +24,7 @@ services:
     container_name: fococero-pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASS}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
     ports:
       - "5050:80"
     depends_on:

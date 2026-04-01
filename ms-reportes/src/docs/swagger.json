@@ -1,0 +1,158 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "API FocoCero - ms-reportes",
+    "description": "Microservicio encargado de la gestión, creación y auditoría de reportes de incendios e incidentes. Protegido con RBAC y Firebase.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Equipo FocoCero"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3004",
+      "description": "Servidor de Desarrollo Local"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token JWT generado por Firebase Auth."
+      }
+    },
+    "schemas": {
+      "Reporte": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "categoria_id": { "type": "string", "format": "uuid" },
+          "titulo": { "type": "string" },
+          "descripcion": { "type": "string" },
+          "latitud": { "type": "number" },
+          "longitud": { "type": "number" },
+          "estado": { 
+            "type": "string",
+            "enum": ["PENDIENTE", "EN_PROCESO", "RESUELTO", "FALSA_ALARMA"]
+          },
+          "id_ciudadano": { "type": "string" },
+          "metadata": { "type": "object" },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CrearReporteDTO": {
+        "type": "object",
+        "required": ["categoria_id", "titulo", "descripcion", "latitud", "longitud"],
+        "properties": {
+          "categoria_id": { "type": "string", "format": "uuid", "example": "123e4567-e89b-12d3-a456-426614174000" },
+          "titulo": { "type": "string", "example": "Humo espeso en la ruta 68" },
+          "descripcion": { "type": "string", "example": "No se ven llamas aún, pero el humo cruza la carretera." },
+          "latitud": { "type": "number", "example": -33.456 },
+          "longitud": { "type": "number", "example": -70.648 },
+          "metadata": { 
+            "type": "object", 
+            "example": { "clima": "viento fuerte", "anonimo": false }
+          }
+        }
+      },
+      "CambiarEstadoDTO": {
+        "type": "object",
+        "required": ["nuevoEstado"],
+        "properties": {
+          "nuevoEstado": { 
+            "type": "string",
+            "enum": ["PENDIENTE", "EN_PROCESO", "RESUELTO", "FALSA_ALARMA"],
+            "example": "EN_PROCESO"
+          },
+          "comentarios": { "type": "string", "example": "Brigada forestal en camino." }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/reportes/health": {
+      "get": {
+        "summary": "Healthcheck del microservicio",
+        "tags": ["Sistema"],
+        "security": [], 
+        "responses": {
+          "200": { "description": "Servicio operando correctamente." }
+        }
+      }
+    },
+    "/api/reportes": {
+      "post": {
+        "summary": "Crear un nuevo reporte",
+        "description": "Crea un incidente. El ID del ciudadano se extrae automáticamente del Token JWT.",
+        "tags": ["Reportes"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CrearReporteDTO" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Reporte creado con éxito" },
+          "400": { "description": "Error de validación (Zod)" },
+          "401": { "description": "No autorizado (Falta Token)" }
+        }
+      },
+      "get": {
+        "summary": "Listar reportes paginados",
+        "tags": ["Reportes"],
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
+          { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
+        ],
+        "responses": {
+          "200": { "description": "Lista de reportes obtenida" }
+        }
+      }
+    },
+    "/api/reportes/{id}": {
+      "get": {
+        "summary": "Obtener detalle de un reporte",
+        "tags": ["Reportes"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Detalle del reporte" },
+          "404": { "description": "Reporte no encontrado" }
+        }
+      }
+    },
+    "/api/reportes/{id}/estado": {
+      "patch": {
+        "summary": "Cambiar estado de un reporte (Solo Brigadista/Admin)",
+        "description": "Actualiza el estado operativo y registra el cambio en el historial de auditoría.",
+        "tags": ["Operaciones"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CambiarEstadoDTO" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Estado actualizado exitosamente" },
+          "400": { "description": "Regla de negocio fallida o validación Zod" },
+          "403": { "description": "Prohibido (Requiere rol ADMIN o BRIGADISTA)" }
+        }
+      }
+    }
+  }
+}
