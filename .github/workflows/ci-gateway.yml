@@ -1,33 +1,36 @@
-name: CI/CD Pipeline - ms-geo
+name: CI/CD Pipeline - api-gateway
 
 on:
   push:
     branches: ["main", "develop"]
     paths:
-      - "ms-geo/**" #
+      - "api-gateway/**"
   pull_request:
     branches: ["main", "develop"]
+    paths: # Añadido para optimizar PRs
+      - "api-gateway/**"
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./ms-geo #
+        working-directory: ./api-gateway
 
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22" #
+          node-version: "22"
           cache: "npm"
-          cache-dependency-path: "./ms-geo/package-lock.json"
+          cache-dependency-path: "./api-gateway/package-lock.json"
 
       - name: Install
         run: npm ci
-      - name: Lint
-        run: npm run lint
-      - name: Test
-        run: npm run test
+
+      # Comentado temporalmente hasta agregar script en package.json
+      # - name: Lint
+      #   run: npm run lint
+
       - name: Build
         run: npm run build

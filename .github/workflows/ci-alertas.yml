@@ -2,9 +2,9 @@ name: CI/CD Pipeline - ms-alertas
 
 on:
   push:
-    branches: ["main", "develop", "feature/ms-alertas-final"]
+    branches: ["main", "develop"]
     paths:
-      - "ms-alertas/**"
+      - "ms-alertas/**" #
   pull_request:
     branches: ["main", "develop"]
 
@@ -13,27 +13,21 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./ms-alertas
+        working-directory: ./ms-alertas #
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "22" #
           cache: "npm"
           cache-dependency-path: "./ms-alertas/package-lock.json"
 
-      - name: Install dependencies
+      - name: Install
         run: npm ci
-
-      - name: Run Linter
+      - name: Lint
         run: npm run lint
-
-      - name: Run Tests
+      - name: Test
         run: npm run test
-
-      - name: Build Project
+      - name: Build
         run: npm run build

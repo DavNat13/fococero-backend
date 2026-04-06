@@ -5,7 +5,7 @@ import admin from '../config/firebase';
 
 /**
  * Middleware: Autenticación Operativa para ms-alertas
- * Valida la firma criptográfica del Token JWT de Firebase.
+ * Valida la firma criptográfica del Token JWT de Firebase o usa el puente de desarrollo.
  */
 export const validateFirebaseToken = async (
     req: Request,
@@ -26,19 +26,31 @@ export const validateFirebaseToken = async (
 
         const token = authHeader.split(' ')[1];
 
-        // 🛡️ Escudo 2: Verificación criptográfica
+        // 🟢 PUENTE PARA DESARROLLO (Master Token)
+        // Permite usar el token de prueba solo si NODE_ENV es 'development'
+        if (process.env.NODE_ENV?.trim() === 'development' && token === 'fococero_test_token') {
+            (req as any).user = {
+                uid: 'master_admin_uid',
+                email: 'comandante@fococero.cl',
+                rol: 'ADMIN', // Rol maestro para desbloquear todas las pruebas
+            };
+            return next();
+        }
+
+        // 🛡️ Escudo 2: Verificación criptográfica real con Firebase
         const decodedToken = await admin.auth().verifyIdToken(token);
 
         // Inyectamos la información en la request.
-        // Nota: Asumimos que guardas el 'rol' en los Custom Claims de Firebase.
         (req as any).user = {
             uid: decodedToken.uid,
             email: decodedToken.email,
-            rol: decodedToken.rol || 'CIUDADANO', // Valor por defecto de seguridad
+            rol: decodedToken.rol || 'CIUDADANO',
         };
 
         next();
     } catch (error: any) {
+        // Si el token falla, el errorHandler enviará el mensaje de "Sesión expirada"
         next(error);
     }
 };
+    

@@ -11,7 +11,10 @@ COPY package*.json ./
 
 # Instalamos TODAS las dependencias (incluyendo las de desarrollo para compilar)
 RUN npm ci
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 # Copiamos el resto del código fuente
 COPY . .
 
