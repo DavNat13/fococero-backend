@@ -7,6 +7,8 @@ on:
       - "api-gateway/**"
   pull_request:
     branches: ["main", "develop"]
+    paths: # Añadido para optimizar PRs
+      - "api-gateway/**"
 
 jobs:
   build-and-test:
@@ -25,7 +27,10 @@ jobs:
 
       - name: Install
         run: npm ci
-      - name: Lint
-        run: npm run lint
+
+      # Comentado temporalmente hasta agregar script en package.json
+      # - name: Lint
+      #   run: npm run lint
+
       - name: Build
         run: npm run build
