@@ -304,7 +304,7 @@ La arquitectura sigue una separación estricta de responsabilidades en carpetas 
 
 1. **Clonar el repositorio:**
    ```bash
-   git clone [https://github.com/TuUsuario/fococero-backend.git](https://github.com/TuUsuario/fococero-backend.git)
+   git clone [https://github.com/DavNat13/fococero-backend.git](https://github.com/DavNat13/fococero-backend.git)
    cd fococero-backend
    ```
 
