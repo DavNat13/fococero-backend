@@ -1,12 +1,12 @@
 // ==========================================
-// 🗄️ REPOSITORIO: MS-ALERTAS
+// 🗄️ REPOSITORIO: MS-ALERTAS (Versión Blindada)
 // ==========================================
 
 import { pool } from '../config/database';
 import { IAlerta, EstadoAlerta } from '../models/alerta.model';
 
 export class AlertaRepository {
-    // 🟢 CREAR
+    // 🟢 CREAR: Con casting total para evitar errores de tipo en PostgreSQL
     static async crear(alerta: IAlerta): Promise<IAlerta> {
         const { foco_id, usuario_id, tipo, gravedad, descripcion, imagenes, ubicacion, metadata } =
             alerta;
@@ -14,12 +14,31 @@ export class AlertaRepository {
         const lat = ubicacion.coordinates[1];
 
         const query = `
-            INSERT INTO alertas (foco_id, usuario_id, tipo, gravedad, descripcion, imagenes, ubicacion, metadata) 
-            VALUES ($1, $2, $3, COALESCE($4, 'MEDIA'), $5, COALESCE($6, '{}'), ST_SetSRID(ST_MakePoint($7, $8), 4326), COALESCE($9, '{}'))
+            INSERT INTO alertas (
+                foco_id, 
+                usuario_id, 
+                tipo, 
+                gravedad, 
+                descripcion, 
+                imagenes, 
+                ubicacion, 
+                metadata
+            ) 
+            VALUES (
+                $1, 
+                $2, 
+                $3::tipo_alerta,           -- Cast para ENUM tipo_alerta
+                $4::gravedad_alerta,       -- Cast para ENUM gravedad_alerta
+                $5, 
+                $6::text[],                -- Cast para Array text[]
+                ST_SetSRID(ST_MakePoint($7, $8), 4326), 
+                $9::jsonb                  -- Cast para JSONB
+            )
             RETURNING id, foco_id, usuario_id, tipo, gravedad, estado, descripcion, imagenes,
                 ST_X(ubicacion::geometry) as lng, ST_Y(ubicacion::geometry) as lat,
                 metadata, fecha_creacion, fecha_actualizacion, eliminado_en;
         `;
+
         const values = [
             foco_id || null,
             usuario_id,
@@ -29,13 +48,15 @@ export class AlertaRepository {
             imagenes || [],
             lng,
             lat,
-            metadata || {},
+            // Convertimos a string para que el driver pg lo maneje correctamente con el cast ::jsonb
+            JSON.stringify(metadata || {}),
         ];
+
         const { rows } = await pool.query(query, values);
         return this.mapearFilaAAlerta(rows[0]);
     }
 
-    // 🔵 LECTURA ESPACIAL
+    // 🔵 LECTURA ESPACIAL: Corregida para medir en metros usando geography
     static async encontrarCercanas(
         lng: number,
         lat: number,
@@ -46,14 +67,21 @@ export class AlertaRepository {
                 ST_X(ubicacion::geometry) as lng, ST_Y(ubicacion::geometry) as lat,
                 metadata, fecha_creacion, fecha_actualizacion, eliminado_en
             FROM alertas
-            WHERE ST_DWithin(ubicacion, ST_SetSRID(ST_MakePoint($1, $2), 4326), $3, true) AND eliminado_en IS NULL
+            WHERE 
+                -- Uso de ::geography para cálculos precisos en metros
+                ST_DWithin(
+                    ubicacion::geography, 
+                    ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, 
+                    $3
+                ) 
+                AND eliminado_en IS NULL
             ORDER BY fecha_creacion DESC;
         `;
         const { rows } = await pool.query(query, [lng, lat, radioMetros]);
         return rows.map((fila) => this.mapearFilaAAlerta(fila));
     }
 
-    // NUEVO: 🔵 LECTURA POR USUARIO (Mis Alertas)
+    // 🔵 LECTURA POR USUARIO (Mis Alertas)
     static async obtenerPorUsuario(usuario_id: string): Promise<IAlerta[]> {
         const query = `
             SELECT id, foco_id, usuario_id, tipo, gravedad, estado, descripcion, imagenes,
@@ -67,7 +95,7 @@ export class AlertaRepository {
         return rows.map((fila) => this.mapearFilaAAlerta(fila));
     }
 
-    // NUEVO: 🔵 LECTURA GENERAL (Panel Admin)
+    // 🔵 LECTURA GENERAL (Panel Admin)
     static async obtenerTodas(): Promise<IAlerta[]> {
         const query = `
             SELECT id, foco_id, usuario_id, tipo, gravedad, estado, descripcion, imagenes,
@@ -81,7 +109,7 @@ export class AlertaRepository {
         return rows.map((fila) => this.mapearFilaAAlerta(fila));
     }
 
-    // NUEVO: 🔵 LECTURA POR ID (Detalle)
+    // 🔵 LECTURA POR ID (Detalle)
     static async obtenerPorId(id: string): Promise<IAlerta | null> {
         const query = `
             SELECT id, foco_id, usuario_id, tipo, gravedad, estado, descripcion, imagenes,
@@ -95,10 +123,11 @@ export class AlertaRepository {
         return this.mapearFilaAAlerta(rows[0]);
     }
 
-    // 🟠 ACTUALIZAR ESTADO
+    // 🟠 ACTUALIZAR ESTADO: Con casting para ENUM estado_alerta
     static async actualizarEstado(id: string, nuevoEstado: EstadoAlerta): Promise<IAlerta | null> {
         const query = `
-            UPDATE alertas SET estado = $1
+            UPDATE alertas 
+            SET estado = $1::estado_alerta -- Cast para ENUM
             WHERE id = $2 AND eliminado_en IS NULL
             RETURNING id, foco_id, usuario_id, tipo, gravedad, estado, descripcion, imagenes,
                 ST_X(ubicacion::geometry) as lng, ST_Y(ubicacion::geometry) as lat,

@@ -7,36 +7,26 @@ import swaggerUi from 'swagger-ui-express'; // <-- NUEVO: Interfaz de Swagger
 import swaggerDocument from './docs/swagger.json'; // <-- NUEVO: Nuestro documento JSON
 import { envs } from './config/envs';
 import './config/firebase';
-import { pool } from './config/database'; 
+import { pool } from './config/database';
 import authRoutes from './routes/auth.routes';
-import { errorHandler } from './middlewares/error.middleware'; 
+import { errorHandler } from './middlewares/error.middleware';
 
 const app: Application = express();
 
 // --- 🛡️ SEGURIDAD PERIMETRAL ---
 app.use(helmet());
 
-// CORS Estricto: Solo permitimos a nuestro frontend de desarrollo y al dominio oficial
-const allowedOrigins = ['http://localhost:5173', 'https://fococero.cl'];
-app.use(cors({
-    origin: (origin, callback) => {
-        // Permitimos peticiones sin origin (como Postman) o si están en la lista
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Acceso denegado por políticas de CORS'));
-        }
-    },
-    credentials: true // Permite envío de cookies/tokens si se requieren
-}));
+// CORS Permisivo: Al ser un microservicio interno, permitimos el tráfico.
+// La seguridad y el bloqueo de dominios no autorizados los maneja el API Gateway.
+app.use(cors());
 
 app.use(express.json());
 app.use(morgan('dev'));
 
 const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 50, 
-    message: { error: 'Demasiadas peticiones desde esta IP. Por favor, intenta en 15 minutos.' }
+    windowMs: 15 * 60 * 1000,
+    max: 50,
+    message: { error: 'Demasiadas peticiones desde esta IP. Por favor, intenta en 15 minutos.' },
 });
 
 // --- 🚦 RUTAS Y DOCUMENTACIÓN ---
@@ -47,7 +37,7 @@ app.get('/health', (req, res) => {
 // 📖 Ruta para la documentación interactiva de la API
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-app.use('/api/auth', apiLimiter, authRoutes);
+app.use('/', apiLimiter, authRoutes);
 app.use(errorHandler);
 
 // --- 🚀 INICIO DE SERVIDOR ---
@@ -60,7 +50,7 @@ const server = app.listen(envs.PORT, () => {
 // Cuando Docker o el sistema operativo ordenen detener el servicio:
 const gracefulShutdown = async () => {
     console.log('\n🛑 Recibida señal de apagado. Deteniendo tráfico HTTP...');
-    
+
     server.close(async () => {
         console.log('✅ Servidor HTTP cerrado (no se aceptan nuevas peticiones).');
         try {
@@ -77,6 +67,4 @@ const gracefulShutdown = async () => {
 
 // Escuchamos las señales de apagado
 process.on('SIGTERM', gracefulShutdown); // Señal típica de Docker/Kubernetes
-process.on('SIGINT', gracefulShutdown);  // Señal al presionar Ctrl+C en la terminal
-
-// Sincronización de pipeline
+process.on('SIGINT', gracefulShutdown); // Señal al presionar Ctrl+C en la terminal

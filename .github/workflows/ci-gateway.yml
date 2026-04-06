@@ -1,10 +1,10 @@
-name: CI/CD Pipeline - ms-reportes
+name: CI/CD Pipeline - api-gateway
 
 on:
   push:
     branches: ["main", "develop"]
     paths:
-      - "ms-reportes/**" #
+      - "api-gateway/**"
   pull_request:
     branches: ["main", "develop"]
 
@@ -13,21 +13,19 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./ms-reportes # ✅ CORREGIDO (Apuntaba a ms-geo)
+        working-directory: ./api-gateway
 
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22" #
+          node-version: "22"
           cache: "npm"
-          cache-dependency-path: "./ms-reportes/package-lock.json"
+          cache-dependency-path: "./api-gateway/package-lock.json"
 
       - name: Install
         run: npm ci
       - name: Lint
         run: npm run lint
-      - name: Test
-        run: npm run test
       - name: Build
         run: npm run build

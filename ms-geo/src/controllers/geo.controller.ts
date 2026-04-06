@@ -60,16 +60,21 @@ export class GeoController {
 
     static async obtenerCercanos(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            // Extraemos y convertimos los parámetros de la URL (?lat=...&lng=...&radio=...)
             const lat = parseFloat(req.query.lat as string);
             const lng = parseFloat(req.query.lng as string);
             const radio = parseInt(req.query.radio as string, 10);
 
+<<<<<<< Updated upstream
             if (isNaN(lat) || isNaN(lng) || isNaN(radio)) {
                 res.status(400).json({ 
                     ok: false, 
                     error: 'Faltan parámetros espaciales. Debes enviar lat (numérico), lng (numérico) y radio (metros).' 
                 });
+=======
+            // 🛡️ Validación Espacial: Evita que PostGIS falle por coordenadas inválidas
+            if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lng) || lng < -180 || lng > 180) {
+                res.status(400).json({ ok: false, error: 'Coordenadas geográficas inválidas.' });
+>>>>>>> Stashed changes
                 return;
             }
 

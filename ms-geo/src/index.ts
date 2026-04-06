@@ -21,10 +21,8 @@ app.set('trust proxy', 1);
 // ============================================================================
 // 📖 1. DOCUMENTACIÓN Y MAPA DE BATALLA (SWAGGER)
 // ============================================================================
-// Usamos require() nativo para evitar que TypeScript rompa el formato del JSON
 import * as swaggerDocument from './docs/swagger.json';
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-
 
 // ============================================================================
 // 🛡️ 2. SEGURIDAD PERIMETRAL Y PARSERS
@@ -43,23 +41,23 @@ app.use(morgan('dev'));
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
     max: 100, // Límite de 100 peticiones por IP
-    message: { ok: false, error: 'Demasiadas peticiones al radar geográfico. Espere un momento.' }
+    message: { ok: false, error: 'Demasiadas peticiones al radar geográfico. Espere un momento.' },
 });
 app.use(limiter);
-
 
 // ============================================================================
 // 🛣️ 3. ENRUTAMIENTO PRINCIPAL
 // ============================================================================
-// Toda la arquitectura que construimos se conecta aquí
-app.use('/api/geo', geoRoutes);
-
+/**
+ * FIJA EL 404: El Gateway ya redirige /api/geo a este microservicio.
+ * Escuchamos en '/' para que las rutas internas (/cercanos, /:id) funcionen.
+ */
+app.use('/', geoRoutes);
 
 // ============================================================================
 // 🚨 4. MANEJADOR DE ERRORES GLOBAL (DEBE IR AL FINAL)
 // ============================================================================
 app.use(errorHandler);
-
 
 // ============================================================================
 // 🚀 5. INICIALIZACIÓN DEL SERVIDOR
@@ -70,12 +68,14 @@ const server = app.listen(PORT, async () => {
     console.log(`\n====================================================`);
     console.log(`🌍 MICROSERVICIO MS-GEO (FocoCero) ACTIVADO`);
     console.log(`📡 Puerto: ${PORT}`);
-    
-    // Verificamos que el motor espacial esté operativo
-try {
+
+    try {
         await testDbConnection();
     } catch (error) {
-        console.error(`⚠️ Advertencia: No se pudo verificar la versión de PostGIS al inicio. Detalle:`, error);
+        console.error(
+            `⚠️ Advertencia: No se pudo verificar la base de datos al inicio. Detalle:`,
+            error,
+        );
     }
 
     console.log(`🛡️  Seguridad: Limitador y Escudos Activos`);
@@ -102,7 +102,6 @@ const gracefulShutdown = async (signal: string) => {
         }
     });
 
-    // Si las peticiones tardan más de 10 segundos en terminar, forzamos el apagado
     setTimeout(() => {
         console.error('⚠️ Forzando el apagado tras 10 segundos de espera.');
         process.exit(1);

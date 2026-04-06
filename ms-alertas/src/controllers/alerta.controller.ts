@@ -14,7 +14,8 @@ export class AlertaController {
             // Usamos (req as any) para evitar errores de TypeScript con el objeto user inyectado
             const alertaData = {
                 ...req.body,
-                usuario_id: (req as any).user?.uid,
+                // ✅ FIX: Busca ambas posibilidades dependiendo del Auth Middleware
+                usuario_id: (req as any).user?.uid || (req as any).user?.firebase_uid,
             };
             const nuevaAlerta = await AlertaService.crearAlerta(alertaData);
             res.status(201).json({
@@ -53,7 +54,8 @@ export class AlertaController {
 
     static async obtenerMisAlertas(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const usuarioId = (req as any).user?.uid as string;
+            // ✅ FIX: Blindaje aplicado también al historial personal
+            const usuarioId = ((req as any).user?.uid || (req as any).user?.firebase_uid) as string;
             const alertas = await AlertaService.obtenerPorUsuario(usuarioId);
             res.status(200).json({ ok: true, resultados: alertas.length, data: alertas });
         } catch (error) {

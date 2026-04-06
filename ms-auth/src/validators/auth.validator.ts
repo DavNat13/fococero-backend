@@ -6,7 +6,6 @@ import { UserRole, UserStatus } from '../models/user.enum';
  * Aplica la filosofía "Zero Trust" (Nunca confíes en el frontend).
  */
 export class AuthValidator {
-
     /**
      * Valida el formato y el dígito verificador de un RUT chileno usando Módulo 11.
      */
@@ -22,7 +21,7 @@ export class AuthValidator {
 
         for (let i = body.length - 1; i >= 0; i--) {
             suma += parseInt(body[i]) * multiplo;
-            multiplo = (multiplo === 7) ? 2 : multiplo + 1;
+            multiplo = multiplo === 7 ? 2 : multiplo + 1;
         }
 
         const dvEsperado = 11 - (suma % 11);
@@ -40,21 +39,33 @@ export class AuthValidator {
         const { rut, nombre, apellido, telefono } = data;
 
         if (!rut || !this.isValidRut(rut)) {
-            return { isValid: false, error: 'El RUT ingresado no es válido o tiene un formato incorrecto.' };
+            return {
+                isValid: false,
+                error: 'El RUT ingresado no es válido o tiene un formato incorrecto.',
+            };
         }
 
         const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
         if (!nombre || nombre.trim().length < 2 || !nameRegex.test(nombre)) {
-            return { isValid: false, error: 'El nombre debe tener al menos 2 letras y no contener números.' };
+            return {
+                isValid: false,
+                error: 'El nombre debe tener al menos 2 letras y no contener números.',
+            };
         }
         if (!apellido || apellido.trim().length < 2 || !nameRegex.test(apellido)) {
-            return { isValid: false, error: 'El apellido debe tener al menos 2 letras y no contener números.' };
+            return {
+                isValid: false,
+                error: 'El apellido debe tener al menos 2 letras y no contener números.',
+            };
         }
 
         const phoneRegex = /^[0-9]{9}$/;
         const cleanPhone = telefono?.replace(/\s/g, '').replace('+56', '');
         if (!cleanPhone || !phoneRegex.test(cleanPhone)) {
-            return { isValid: false, error: 'El teléfono debe ser un número de 9 dígitos (ej: 912345678).' };
+            return {
+                isValid: false,
+                error: 'El teléfono debe ser un número de 9 dígitos (ej: 912345678).',
+            };
         }
 
         return { isValid: true };
@@ -65,9 +76,12 @@ export class AuthValidator {
         if (!guestValidation.isValid) return guestValidation;
 
         if (!data.token || data.token.length < 20) {
-            return { isValid: false, error: 'Se requiere un token de autenticación de Firebase válido.' };
+            return {
+                isValid: false,
+                error: 'Se requiere un token de autenticación de Firebase válido.',
+            };
         }
-        
+
         return { isValid: true };
     }
 

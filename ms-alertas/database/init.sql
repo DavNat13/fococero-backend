@@ -30,8 +30,8 @@ CREATE TYPE estado_alerta AS ENUM (
 );
 
 -- 3. Funciones Automáticas (Triggers)
--- 3a. Función para actualizar fecha_actualizacion
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+-- 3a. Función para actualizar fecha_actualizacion (✅ FIX: Nombre Único)
+CREATE OR REPLACE FUNCTION update_alertas_modtime()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.fecha_actualizacion = NOW();
@@ -96,11 +96,11 @@ END;
 $$ language 'plpgsql';
 
 -- 7. Asociar los Triggers a las tablas
--- Actualiza la fecha siempre
+-- ✅ FIX: Llama a la nueva función de alertas
 CREATE TRIGGER set_timestamp_alertas
 BEFORE UPDATE ON alertas
 FOR EACH ROW
-EXECUTE FUNCTION update_updated_at_column();
+EXECUTE FUNCTION update_alertas_modtime();
 
 -- Guarda en el historial después de insertar o actualizar el estado
 CREATE TRIGGER trigger_auditoria_estado
