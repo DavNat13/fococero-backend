@@ -1,5 +1,3 @@
-<<<<<<< Updated upstream
-=======
 import "dotenv/config";
 import { z } from "zod";
 
@@ -35,4 +33,3 @@ if (!_env.success) {
 }
 
 export const envs = _env.data;
->>>>>>> Stashed changes

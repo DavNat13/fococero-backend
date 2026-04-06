@@ -1,13 +1,3 @@
-<<<<<<< Updated upstream
-import { createProxyMiddleware } from 'http-proxy-middleware';
-import express, { Application } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import dotenv from 'dotenv';
-
-dotenv.config();
-=======
 // api-gateway/src/index.ts
 
 import express, { Application } from "express";
@@ -23,49 +13,10 @@ import { globalLimiter } from "./middlewares/rateLimiter";
 import { errorHandler } from "./middlewares/errorHandler";
 import { appRoutes } from "./routes/routes";
 import { swaggerDocument } from "./docs/swagger";
->>>>>>> Stashed changes
 
 const app: Application = express();
 const PORT = process.env.PORT || 3000;
 
-<<<<<<< Updated upstream
-// --- 🛡️ SEGURIDAD Y LOGS ---
-app.use(helmet());
-app.use(cors());
-app.use(morgan('dev'));
-
-// --- 🚦 CONFIGURACIÓN DE PROXIES ---
-
-// Redirige a MS-AUTH (Puerto 3001)
-app.use('/api/auth', createProxyMiddleware({
-    target: 'http://localhost:3001',
-    changeOrigin: true,
-}));
-
-// Redirige a MS-GEO (Puerto 3002)
-app.use('/api/geo', createProxyMiddleware({
-    target: 'http://localhost:3002',
-    changeOrigin: true,
-}));
-
-// Redirige a MS-ALERTAS (Puerto 3003)
-app.use('/api/alertas', createProxyMiddleware({
-    target: 'http://localhost:3003',
-    changeOrigin: true,
-}));
-
-// --- 🩺 PUNTO DE CONTROL ---
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'API Gateway UP', 
-        services: ['ms-auth', 'ms-geo', 'ms-alertas'] 
-    });
-});
-
-app.listen(PORT, () => {
-    console.log(`🚀 API Gateway FocoCero funcionando en http://localhost:${PORT}`);
-});
-=======
 /**
  * CONFIGURACIÓN DE PROXY
  * Vital para que el Gateway reconozca las IPs reales de los usuarios
@@ -132,4 +83,3 @@ const shutdown = (signal: string) => {
 
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
->>>>>>> Stashed changes

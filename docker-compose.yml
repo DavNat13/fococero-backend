@@ -135,13 +135,8 @@ services:
     image: dpage/pgadmin4
     container_name: fococero-pgadmin
     environment:
-<<<<<<< Updated upstream
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
-=======
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@fococero.cl}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-foco0-1234}
->>>>>>> Stashed changes
     ports:
       - "5050:80"
     depends_on:
