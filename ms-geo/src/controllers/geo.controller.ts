@@ -9,7 +9,6 @@ import { GeoValidator } from '../validators/geo.validator';
  * Actúa estrictamente como director de tráfico.
  */
 export class GeoController {
-
     // ============================================================================
     // 🟢 SECCIÓN: CREACIÓN (REPORTES CIUDADANOS)
     // ============================================================================
@@ -23,11 +22,11 @@ export class GeoController {
             }
 
             const nuevoFoco = await GeoService.crearFoco(req.body);
-            
-            res.status(201).json({ 
-                ok: true, 
-                msg: 'Incendio reportado y geolocalizado con éxito.', 
-                data: nuevoFoco 
+
+            res.status(201).json({
+                ok: true,
+                msg: 'Incendio reportado y geolocalizado con éxito.',
+                data: nuevoFoco,
             });
         } catch (error) {
             next(error);
@@ -50,7 +49,7 @@ export class GeoController {
     static async obtenerPorId(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             // Solución al error de tipado: Forzamos (cast) a string
-            const id = req.params.id as string; 
+            const id = req.params.id as string;
             const foco = await GeoService.obtenerPorId(id);
             res.status(200).json({ ok: true, data: foco });
         } catch (error) {
@@ -64,17 +63,9 @@ export class GeoController {
             const lng = parseFloat(req.query.lng as string);
             const radio = parseInt(req.query.radio as string, 10);
 
-<<<<<<< Updated upstream
-            if (isNaN(lat) || isNaN(lng) || isNaN(radio)) {
-                res.status(400).json({ 
-                    ok: false, 
-                    error: 'Faltan parámetros espaciales. Debes enviar lat (numérico), lng (numérico) y radio (metros).' 
-                });
-=======
             // 🛡️ Validación Espacial: Evita que PostGIS falle por coordenadas inválidas
             if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lng) || lng < -180 || lng > 180) {
                 res.status(400).json({ ok: false, error: 'Coordenadas geográficas inválidas.' });
->>>>>>> Stashed changes
                 return;
             }
 
@@ -102,17 +93,21 @@ export class GeoController {
             }
 
             const actualizado = await GeoService.cambiarEstado(id, estado);
-            res.status(200).json({ 
-                ok: true, 
-                msg: `Estado operativo actualizado a: ${estado}`, 
-                data: actualizado 
+            res.status(200).json({
+                ok: true,
+                msg: `Estado operativo actualizado a: ${estado}`,
+                data: actualizado,
             });
         } catch (error) {
             next(error);
         }
     }
 
-    static async actualizarPerimetro(req: Request, res: Response, next: NextFunction): Promise<void> {
+    static async actualizarPerimetro(
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ): Promise<void> {
         try {
             const id = req.params.id as string;
             const { area_quemada_wkt } = req.body;
@@ -124,24 +119,28 @@ export class GeoController {
             }
 
             const actualizado = await GeoService.actualizarPerimetro(id, area_quemada_wkt);
-            res.status(200).json({ 
-                ok: true, 
-                msg: 'Perímetro espacial del incendio actualizado en el mapa táctico.', 
-                data: actualizado 
+            res.status(200).json({
+                ok: true,
+                msg: 'Perímetro espacial del incendio actualizado en el mapa táctico.',
+                data: actualizado,
             });
         } catch (error) {
             next(error);
         }
     }
 
-    static async actualizarCompleto(req: Request, res: Response, next: NextFunction): Promise<void> {
+    static async actualizarCompleto(
+        req: Request,
+        res: Response,
+        next: NextFunction,
+    ): Promise<void> {
         try {
             const id = req.params.id as string;
             const actualizado = await GeoService.actualizarCompleto(id, req.body);
-            res.status(200).json({ 
-                ok: true, 
-                msg: 'Información integral del reporte actualizada.', 
-                data: actualizado 
+            res.status(200).json({
+                ok: true,
+                msg: 'Información integral del reporte actualizada.',
+                data: actualizado,
             });
         } catch (error) {
             next(error);
@@ -156,7 +155,10 @@ export class GeoController {
         try {
             const id = req.params.id as string;
             await GeoService.eliminar(id);
-            res.status(200).json({ ok: true, msg: 'Reporte removido exitosamente del sistema operativo.' });
+            res.status(200).json({
+                ok: true,
+                msg: 'Reporte removido exitosamente del sistema operativo.',
+            });
         } catch (error) {
             next(error);
         }
