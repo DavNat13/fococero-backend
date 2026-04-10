@@ -1,35 +1,47 @@
+// ms-auth/src/middlewares/error.middleware.ts
+
 import { Request, Response, NextFunction } from 'express';
+
+// Interfaz local para castear los metadatos de error sin usar 'any'
+interface AppError extends Error {
+    statusCode?: number;
+    code?: string;
+}
 
 /**
  * Middleware: Manejador Global de Errores (Error Catcher)
- * Evita que la aplicación colapse (crash) centralizando las respuestas de error.
+ * Evita que la aplicación colapse centralizando las respuestas de error.
  */
 export const errorHandler = (
-    err: any, 
-    _req: Request, 
-    res: Response, 
-    next: NextFunction
+    err: unknown,
+    _req: Request,
+    res: Response,
+    _next: NextFunction,
 ): void => {
-    // 1. Log interno del servidor (Para trazabilidad en Docker/AWS)
-    console.error(`🚨 [Error Global Handler]:`, err);
+    // Casteo seguro de la excepción
+    const error = err as AppError;
 
-    let statusCode = err.statusCode || 500;
-    let message = err.message || 'Error interno del servidor. Contacte al equipo de FocoCero.';
+    // 1. Log interno del servidor (Para trazabilidad)
+    console.error(`🚨 [Error Global Handler ms-auth]:`, error.message || error);
+
+    let statusCode = error.statusCode || 500;
+    let message = error.message || 'Error interno del servidor. Contacte al equipo de FocoCero.';
 
     // --- 🟢 EVALUACIÓN DE ERRORES FIREBASE ---
-    if (err.code && err.code.startsWith('auth/')) {
-        statusCode = 401; 
-        
-        switch (err.code) {
+    if (error.code && error.code.startsWith('auth/')) {
+        statusCode = 401;
+        switch (error.code) {
             case 'auth/id-token-expired':
-                message = 'Tu sesión ha expirado por seguridad. Por favor, inicia sesión nuevamente.';
+                message =
+                    'Tu sesión ha expirado por seguridad. Por favor, inicia sesión nuevamente.';
                 break;
             case 'auth/argument-error':
             case 'auth/invalid-id-token':
                 message = 'El token de acceso proporcionado está corrupto o es inválido.';
                 break;
             case 'auth/user-not-found':
-                message = 'La credencial vinculada a este token ya no existe en los registros de Google.';
+                message =
+                    'La credencial vinculada a este token ya no existe en los registros de Google.';
                 break;
             default:
                 message = 'Fallo en la validación de identidad. Verifica tus credenciales.';
@@ -37,21 +49,19 @@ export const errorHandler = (
     }
 
     // --- 🔵 EVALUACIÓN DE ERRORES POSTGRESQL (pg) ---
-    // Código 23505 = unique_violation (Ej: Se intenta registrar un RUT o Email duplicado)
-    if (err.code === '23505') {
+    if (error.code === '23505') {
         statusCode = 409; // 409 Conflict
-        message = 'Conflicto de datos: El registro que intentas ingresar ya existe en el sistema.';
-    }
-    
-    // Código 22P02 = invalid_text_representation (Ej: Enviar texto donde va un número)
-    if (err.code === '22P02') {
-        statusCode = 400; // 400 Bad Request
-        message = 'Formato de datos incorrecto en la base de datos (Ej: Letras en campo numérico).';
+        message =
+            'Conflicto de datos: El registro (RUT o Email) que intentas ingresar ya existe en el sistema.';
     }
 
-    // --- 🔴 RESPUESTA ESTANDARIZADA AL FRONTEND ---
+    if (error.code === '22P02') {
+        statusCode = 400; // 400 Bad Request
+        message = 'Formato de datos incorrecto en la base de datos (Ej: UUID inválido).';
+    }
+
     res.status(statusCode).json({
         ok: false,
-        error: message
+        error: message,
     });
 };

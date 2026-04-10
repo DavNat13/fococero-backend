@@ -1,14 +1,15 @@
-// src/@types/express/index.d.ts
+// ms-auth/src/@types/express/index.d.ts
 
+// Asegúrate de importar la interfaz/modelo que retorna tu UserRepository
+// Si se llama IUser, cambialo por IUser. Asumo que se llama 'Usuario' por el error de TypeScript.
 import { Usuario } from '../../models/user.model';
 
 declare global {
     namespace Express {
-        // "Extendemos" la interfaz Request original de Express
         export interface Request {
-            // Añadimos la propiedad 'user', indicando que es opcional (?) 
-            // porque no todas las rutas (como el registro) tendrán un usuario logueado.
-            user?: Usuario; 
+            // Le decimos a Express que TODO usuario autenticado en ms-auth
+            // tendrá la estructura completa de la Base de Datos
+            user?: Usuario;
         }
     }
 }
