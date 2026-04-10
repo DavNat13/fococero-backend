@@ -1,3 +1,5 @@
+# ms-alertas/Dockerfile
+
 # ==========================================
 # Etapa 1: Construcción (Builder)
 # ==========================================
@@ -23,7 +25,7 @@ RUN npm run build
 # ==========================================
 FROM node:22-alpine
 
-# Establecemos el entorno en producción
+# Establecemos el entorno en producción de forma inmutable
 ENV NODE_ENV=production
 
 # Directorio de trabajo
@@ -32,7 +34,7 @@ WORKDIR /app
 # Copiamos solo los archivos de dependencias
 COPY package*.json ./
 
-# Instalamos SOLO las dependencias de producción (hace la imagen mucho más ligera)
+# Instalamos SOLO las dependencias de producción (reduce drásticamente la superficie de ataque y peso)
 RUN npm ci --omit=dev
 
 # Copiamos la carpeta compilada desde la Etapa 1
@@ -44,5 +46,5 @@ USER node
 # Exponemos el puerto 3003 (Exclusivo para ms-alertas)
 EXPOSE 3003
 
-# Comando de arranque
+# Comando de arranque del microservicio
 CMD ["node", "dist/index.js"]

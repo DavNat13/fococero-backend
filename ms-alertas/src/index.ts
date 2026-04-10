@@ -1,5 +1,7 @@
+// ms-alertas/src/index.ts
+
 // ==========================================
-// 🚨 ENTRYPOINT: MS-ALERTAS
+// 🚨 ENTRYPOINT: MS-ALERTAS (Production-Ready)
 // ==========================================
 
 import express, { Application, Request, Response } from 'express';
@@ -9,7 +11,8 @@ import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 
-// --- IMPORTACIONES INTERNAS ---
+// --- IMPORTACIONES INTERNAS ---\
+import { envs } from './config/envs';
 import { pool, testDbConnection } from './config/database';
 import './config/firebase'; // Inicializa Firebase Admin automáticamente
 import alertasRoutes from './routes/alerta.routes';
@@ -55,11 +58,10 @@ app.use(limiter);
 // ============================================================================
 // Endpoint de Salud (Requerido por nuestro test de Jest)
 app.get('/api/health', (req: Request, res: Response) => {
-    res.status(200).json({ status: 'UP', service: 'ms-alertas' });
+    res.status(200).json({ status: 'UP', service: 'ms-alertas', environment: envs.NODE_ENV });
 });
 
-// Toda la arquitectura de alertas se conectará aquí (Lo haremos en los siguientes pasos)
-app.use('/api/alertas', alertasRoutes);
+app.use('/', alertasRoutes);
 
 // ============================================================================
 // 🚨 4. MANEJADOR DE ERRORES GLOBAL (DEBE IR AL FINAL)
@@ -68,13 +70,12 @@ app.use(errorHandler);
 
 // ============================================================================
 // 🚀 5. INICIALIZACIÓN DEL SERVIDOR
-// ============================================================================
-const PORT = process.env.PORT || 3003;
+const PORT = envs.PORT;
 
 const server = app.listen(PORT, async () => {
     console.log(`\n====================================================`);
     console.log(`🚨 MICROSERVICIO MS-ALERTAS (FocoCero) ACTIVADO`);
-    console.log(`📡 Puerto: ${PORT}`);
+    console.log(`📡 Puerto: ${PORT} | Entorno: ${envs.NODE_ENV}`);
 
     // Verificamos que el motor de base de datos esté operativo
     try {
@@ -95,29 +96,25 @@ const server = app.listen(PORT, async () => {
 // 🛑 6. APAGADO ELEGANTE (GRACEFUL SHUTDOWN)
 // ============================================================================
 const gracefulShutdown = async (signal: string) => {
-    console.log(
-        `\n🛑 Recibida señal de apagado (${signal}). Deteniendo tráfico HTTP en ms-alertas...`,
-    );
+    console.log(`\n🛑 Recibida señal de apagado (${signal}). Cerrando ms-alertas...`);
+    try {
+        await pool.end();
+        console.log('✅ Conexiones a la base de datos cerradas.');
+    } catch (err) {
+        console.error('❌ Error al cerrar conexiones DB:', err);
+    }
 
-    server.close(async () => {
-        console.log('✅ Servidor HTTP cerrado (no se aceptan nuevas peticiones).');
-        try {
-            console.log('🛑 Desconectando motor PostgreSQL (Alertas)...');
-            await pool.end();
-            console.log('✅ Base de datos desconectada. Apagado exitoso del sistema.');
-            process.exit(0);
-        } catch (err) {
-            console.error('❌ Error al desconectar la base de datos:', err);
-            process.exit(1);
-        }
+    server.close(() => {
+        console.log('✅ Servidor HTTP detenido. Adiós.');
+        process.exit(0);
     });
 
-    // Si las peticiones tardan más de 10 segundos en terminar, forzamos el apagado
+    // Fallback de seguridad por si una conexión se queda colgada
     setTimeout(() => {
-        console.error('⚠️ Forzando el apagado tras 10 segundos de espera.');
+        console.error('❌ Cierre forzado por Timeout tras 10s.');
         process.exit(1);
     }, 10000);
 };
 
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

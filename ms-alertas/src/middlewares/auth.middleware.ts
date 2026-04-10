@@ -4,8 +4,8 @@ import { Request, Response, NextFunction } from 'express';
 import admin from '../config/firebase';
 
 /**
- * Middleware: Autenticación Operativa para ms-alertas
- * Valida la firma criptográfica del Token JWT de Firebase.
+ * Middleware: Autenticación Operativa (Zero Trust)
+ * Valida estrictamente la firma criptográfica del Token JWT mediante Firebase Admin.
  */
 export const validateFirebaseToken = async (
     req: Request,
@@ -15,7 +15,6 @@ export const validateFirebaseToken = async (
     try {
         const authHeader = req.headers.authorization;
 
-        // 🛡️ Escudo 1: Rechazo temprano si no hay token
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             res.status(401).json({
                 ok: false,
@@ -26,19 +25,19 @@ export const validateFirebaseToken = async (
 
         const token = authHeader.split(' ')[1];
 
-        // 🛡️ Escudo 2: Verificación criptográfica
+        // Verificación criptográfica real. Si falla, lanza un error que captura el catch.
         const decodedToken = await admin.auth().verifyIdToken(token);
 
-        // Inyectamos la información en la request.
-        // Nota: Asumimos que guardas el 'rol' en los Custom Claims de Firebase.
-        (req as any).user = {
+        // Tipado estricto gracias a Declaration Merging. Cero uso de 'any'.
+        req.user = {
             uid: decodedToken.uid,
-            email: decodedToken.email,
-            rol: decodedToken.rol || 'CIUDADANO', // Valor por defecto de seguridad
+            email: decodedToken.email ?? '',
+            rol: decodedToken.rol || 'CIUDADANO',
         };
 
         next();
-    } catch (error: any) {
+    } catch (error: unknown) {
+        // Delegamos el error al middleware global de errores
         next(error);
     }
 };

@@ -9,7 +9,7 @@ import { UserRole } from '../models/user.enum';
  */
 export const authorizeRole = (allowedRoles: UserRole[]) => {
     return (req: Request, res: Response, next: NextFunction): void => {
-        const user = (req as any).user;
+        const user = req.user; // Autocompletado nativo disponible
 
         if (!user) {
             res.status(401).json({
@@ -19,7 +19,7 @@ export const authorizeRole = (allowedRoles: UserRole[]) => {
             return;
         }
 
-        if (!allowedRoles.includes(user.rol)) {
+        if (!allowedRoles.includes(user.rol as UserRole)) {
             res.status(403).json({
                 ok: false,
                 msg: `Acceso denegado: Requiere nivel de privilegio superior. Tu rol actual es '${user.rol}'.`,

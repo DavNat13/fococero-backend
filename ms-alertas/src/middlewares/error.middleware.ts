@@ -2,39 +2,44 @@
 
 import { Request, Response, NextFunction } from 'express';
 
+// Interfaz para tipar los errores que contienen metadatos adicionales
+interface AppError extends Error {
+    statusCode?: number;
+    code?: string;
+}
+
 /**
- * Middleware: Manejador Global de Errores para ms-alertas
+ * Middleware: Manejador Global de Errores
  * Atrapa cualquier excepción no controlada en controladores o servicios.
  */
-export const errorHandler = (err: any, _req: Request, res: Response, next: NextFunction): void => {
-    // Log interno para los desarrolladores/sysadmins
-    console.error(`🚨 [Alertas Error]:`, err.message || err);
+export const errorHandler = (
+    err: unknown,
+    _req: Request,
+    res: Response,
+    _next: NextFunction,
+): void => {
+    const error = err as AppError;
 
-    let statusCode = err.statusCode || 500;
-    let message = err.message || 'Error interno en el sistema de alertas de FocoCero.';
+    console.error(`🚨 [Alertas Error]:`, error.message || error);
 
-    // --- 🟢 TRADUCCIÓN DE ERRORES FIREBASE (Auth) ---
-    if (err.code && err.code.startsWith('auth/')) {
+    let statusCode = error.statusCode || 500;
+    let message = error.message || 'Error interno en el sistema de alertas de FocoCero.';
+
+    // --- TRADUCCIÓN DE ERRORES FIREBASE (Auth) ---
+    if (error.code && error.code.startsWith('auth/')) {
         statusCode = 401;
-        if (err.code === 'auth/id-token-expired') {
-            message = 'Tu sesión ha expirado. Por favor, vuelve a iniciar sesión.';
-        } else {
-            message = 'Token de acceso inválido o corrupto.';
-        }
+        message =
+            error.code === 'auth/id-token-expired'
+                ? 'Tu sesión ha expirado. Por favor, vuelve a iniciar sesión.'
+                : 'Token de acceso inválido o corrupto.';
     }
 
-    // --- 🔵 TRADUCCIÓN DE ERRORES POSTGRESQL / POSTGIS ---
-    if (err.code === '22P02') {
+    // --- TRADUCCIÓN DE ERRORES POSTGRESQL / POSTGIS ---
+    if (error.code === '22P02') {
         statusCode = 400;
         message = 'Formato de datos incorrecto para la base de datos de alertas.';
     }
 
-    if (err.code === 'XX000') {
-        statusCode = 400;
-        message = 'Error de topología: La ubicación de la alerta no es válida.';
-    }
-
-    // --- 🛡️ RESPUESTA ESTANDARIZADA ---
     res.status(statusCode).json({
         ok: false,
         error: message,

@@ -1,36 +1,34 @@
-import dotenv from 'dotenv';
+// src/config/envs.ts
+import 'dotenv/config';
+import * as env from 'env-var';
 
-dotenv.config();
-
-const requiredEnvs = [
-    'PORT',
-    'DB_USER',
-    'DB_PASSWORD',
-    'DB_HOST',
-    'DB_NAME',
-    'DB_PORT',
-    'FIREBASE_PROJECT_ID',
-    'FIREBASE_CLIENT_EMAIL',
-    'FIREBASE_PRIVATE_KEY',
-];
-
-requiredEnvs.forEach((envName) => {
-    if (!process.env[envName]) {
-        console.error(`🚨 FATAL ERROR (ms-alertas): Falta la variable de entorno: ${envName}`);
-        // process.exit(1); // Descomentar en producción para evitar arranques fallidos
-    }
-});
+/**
+ * Arquitectura de Configuración: Fail-Fast
+ * Este módulo valida que todas las variables necesarias existan y tengan el tipo correcto.
+ * Si alguna falla, la librería lanzará una excepción y el proceso terminará,
+ * evitando que el microservicio opere en un estado degradado o inseguro.
+ */
 
 export const envs = {
-    PORT: process.env.PORT || 3003, // Puerto exclusivo de ms-alertas
-    DB_USER: process.env.DB_USER,
-    DB_PASSWORD: process.env.DB_PASSWORD,
-    DB_HOST: process.env.DB_HOST,
-    DB_NAME: process.env.DB_NAME,
-    DB_PORT: process.env.DB_PORT,
+    // Servidor
+    PORT: env.get('PORT').required().asPortNumber(),
+    NODE_ENV: env.get('NODE_ENV').default('development').asString(),
 
-    // Credenciales de Firebase (con limpieza del salto de línea)
-    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || '',
-    FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL || '',
-    FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n') || '',
+    // Base de Datos - Sin valores por defecto para forzar configuración explícita
+    DB_USER: env.get('DB_USER').required().asString(),
+    DB_PASSWORD: env.get('DB_PASSWORD').required().asString(),
+    DB_HOST: env.get('DB_HOST').required().asString(),
+    DB_PORT: env.get('DB_PORT').required().asPortNumber(),
+    DB_NAME: env.get('DB_NAME').required().asString(),
+
+    // Firebase Admin SDK
+    FIREBASE_PROJECT_ID: env.get('FIREBASE_PROJECT_ID').required().asString(),
+    FIREBASE_CLIENT_EMAIL: env.get('FIREBASE_CLIENT_EMAIL').required().asString(),
+
+    // Tratamiento especial para llaves privadas de Firebase
+    FIREBASE_PRIVATE_KEY: env
+        .get('FIREBASE_PRIVATE_KEY')
+        .required()
+        .asString()
+        .replace(/\\n/g, '\n'), // Asegura que los saltos de línea sean válidos para OpenSSL
 };

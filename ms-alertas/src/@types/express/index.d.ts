@@ -1,14 +1,15 @@
 // src/@types/express/index.d.ts
 
-import { Usuario } from '../../models/user.model';
+import { UserRole } from '../../models/user.enum'; // Asegúrate de que esta ruta coincida con tu enum
 
 declare global {
     namespace Express {
-        // "Extendemos" la interfaz Request original de Express
         export interface Request {
-            // Añadimos la propiedad 'user', indicando que es opcional (?) 
-            // porque no todas las rutas (como el registro) tendrán un usuario logueado.
-            user?: Usuario; 
+            user?: {
+                uid: string;
+                email: string;
+                rol: UserRole | string;
+            };
         }
     }
 }
