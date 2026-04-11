@@ -2,11 +2,16 @@ name: CI/CD Pipeline - ms-alertas
 
 on:
   push:
-    branches: ["main", "develop", "feature/ms-alertas-final"]
+    branches: ["main", "develop", "feature/*"]
     paths:
       - "ms-alertas/**"
   pull_request:
     branches: ["main", "develop"]
+    paths:
+      - "ms-alertas/**"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-test:
@@ -19,7 +24,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -30,10 +35,10 @@ jobs:
         run: npm ci
 
       - name: Run Linter
-        run: npm run lint
+        run: npm run lint --if-present
 
       - name: Run Tests
-        run: npm run test
+        run: npm run test --if-present
 
       - name: Build Project
         run: npm run build

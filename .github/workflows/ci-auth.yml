@@ -2,43 +2,43 @@ name: CI/CD Pipeline - ms-auth
 
 on:
   push:
-    branches: [ "main", "develop", "feature/ms-geo" ]
+    branches: ["main", "develop", "feature/*"]
     paths:
-      - 'ms-auth/**'
+      - "ms-auth/**"
   pull_request:
-    branches: [ "main", "develop" ]
+    branches: ["main", "develop"]
+    paths:
+      - "ms-auth/**"
 
-# Forzamos al entorno a usar las versiones más modernas de JavaScript
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    
     defaults:
       run:
         working-directory: ./ms-auth
 
     steps:
-    - name: Descargar el código
-      uses: actions/checkout@v4 # 🔄 Actualizado de v3 a v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Configurar Node.js 22
-      uses: actions/setup-node@v4 # 🔄 Actualizado de v3 a v4
-      with:
-        node-version: '22' # 🚀 Subimos a la versión estable más moderna
-        cache: 'npm'
-        cache-dependency-path: './ms-auth/package-lock.json'
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "./ms-auth/package-lock.json"
 
-    - name: Instalar dependencias
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Revisar estilo de código (Linter)
-      run: npm run lint
+      - name: Run Linter
+        run: npm run lint --if-present
 
-    - name: Ejecutar pruebas (Jest)
-      run: npm run test
+      - name: Run Tests
+        run: npm run test --if-present
 
-    - name: Compilar TypeScript (Build)
-      run: npm run build
+      - name: Build Project
+        run: npm run build
