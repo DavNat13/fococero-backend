@@ -1,39 +1,41 @@
-// src/middlewares/error.middleware.ts
-
+// ms-reportes/src/middlewares/error.middleware.ts
 import { Request, Response, NextFunction } from 'express';
 
-/**
- * Middleware: Manejador Global de Errores para ms-reportes
- * Atrapa cualquier excepción no controlada en controladores o servicios.
- */
-export const errorHandler = (err: any, _req: Request, res: Response, next: NextFunction): void => {
-    console.error(`🚨 [Reportes Error]:`, err.message || err);
+interface AppError extends Error {
+    statusCode?: number;
+    code?: string;
+}
 
-    let statusCode = err.statusCode || 500;
-    let message = err.message || 'Error interno en el sistema de reportes de FocoCero.';
+export const errorHandler = (
+    err: unknown,
+    _req: Request,
+    res: Response,
+    _next: NextFunction,
+): void => {
+    const error = err as AppError;
+    console.error(`🚨 [Reportes Error]:`, error.message || error);
 
-    // --- 🟢 TRADUCCIÓN DE ERRORES FIREBASE (Auth) ---
-    if (err.code && err.code.startsWith('auth/')) {
+    let statusCode = error.statusCode || 500;
+    let message = error.message || 'Error interno en el sistema de reportes de FocoCero.';
+
+    if (error.code && error.code.startsWith('auth/')) {
         statusCode = 401;
-        if (err.code === 'auth/id-token-expired') {
-            message = 'Tu sesión ha expirado. Por favor, vuelve a iniciar sesión.';
-        } else {
-            message = 'Token de acceso inválido o corrupto.';
-        }
+        message =
+            error.code === 'auth/id-token-expired'
+                ? 'Tu sesión ha expirado. Por favor, vuelve a iniciar sesión.'
+                : 'Token de acceso inválido o corrupto.';
     }
 
-    // --- 🔵 TRADUCCIÓN DE ERRORES POSTGRESQL / POSTGIS ---
-    if (err.code === '22P02') {
+    if (error.code === '22P02') {
         statusCode = 400;
         message = 'Formato de datos incorrecto para la base de datos de reportes.';
     }
 
-    if (err.code === 'XX000') {
+    if (error.code === 'XX000') {
         statusCode = 400;
         message = 'Error de topología: La ubicación del reporte no es válida.';
     }
 
-    // --- 🛡️ RESPUESTA ESTANDARIZADA ---
     res.status(statusCode).json({
         ok: false,
         error: message,

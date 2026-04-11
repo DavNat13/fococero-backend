@@ -1,144 +1,127 @@
-// src/index.ts
+// ms-reportes/src/index.ts
+
+// ==========================================
+// 🚨 ENTRYPOINT: MS-REPORTES (Production-Ready)
+// ==========================================
+
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
-import swaggerUi from 'swagger-ui-express'; 
+import swaggerUi from 'swagger-ui-express';
 
 // --- IMPORTACIONES INTERNAS ---
-import pool from './config/db';
 import { envs } from './config/envs';
-import './config/firebase'; 
-import reporteRoutes from './routes/reporte.routes'; 
-import { errorHandler } from './middlewares/error.middleware'; 
+import { pool, testDbConnection } from './config/db';
+import './config/firebase';
+import reporteRoutes from './routes/reporte.routes';
+import { errorHandler } from './middlewares/error.middleware';
 
 const app: Application = express();
+
 app.set('trust proxy', 1);
 
-// ============================================================================
-// 📖 1. DOCUMENTACIÓN Y MAPA DE BATALLA (SWAGGER)
-// ============================================================================
-
+// 📖 1. DOCUMENTACIÓN (SWAGGER)
 import * as swaggerDocument from './docs/swagger.json';
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-
-// ============================================================================
-// 🛡️ 2. SEGURIDAD PERIMETRAL Y PARSERS
-// ============================================================================
-
+// 🛡️ 2. SEGURIDAD PERIMETRAL
 app.use(helmet());
 
-// CORS Estricto (Adaptado a tus entornos)
+// Nota: Usualmente el API Gateway maneja los CORS, pero lo dejamos por seguridad en capa 2
 const allowedOrigins = ['http://localhost:5173', 'https://fococero.cl'];
-app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Acceso denegado por políticas de CORS estricto'));
-        }
-    },
-    credentials: true,
-}));
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error('Acceso denegado por políticas de CORS estricto'));
+            }
+        },
+        credentials: true,
+    }),
+);
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
-
-// Logger de peticiones
 app.use(morgan('dev'));
 
-// Limitador de peticiones para evitar ataques DDoS al sistema
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
-    max: 100, 
-    message: { ok: false, error: 'Demasiadas peticiones al sistema de reportes. Espere un momento.' }
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: {
+        ok: false,
+        error: 'Demasiadas peticiones al sistema de reportes. Espere un momento.',
+    },
 });
 app.use(limiter);
 
-
-// ============================================================================
-// 🚦 3. TEST DE VIDA (HEALTHCHECK)
-// ============================================================================
-
-app.get('/api/reportes/health', (req: Request, res: Response) => {
-    res.status(200).json({ 
-        success: true, 
-        status: 'UP', 
+// 🛣️ 3. ENRUTAMIENTO PRINCIPAL
+app.get('/api/health', (req: Request, res: Response) => {
+    res.status(200).json({
+        ok: true,
+        status: 'UP',
         service: 'ms-reportes',
-        port: envs.PORT,
-        timestamp: new Date().toISOString() 
+        environment: envs.NODE_ENV,
+        timestamp: new Date().toISOString(),
     });
 });
 
+// ✅ FIX ARQUITECTÓNICO: Escuchamos en la raíz para que el API Gateway gestione el prefijo limpio
+app.use('/', reporteRoutes);
 
-// ============================================================================
-// 🛣️ 4. ENRUTAMIENTO PRINCIPAL
-// ============================================================================
-
-app.use('/api/reportes', reporteRoutes);
-
-// Manejador de rutas no encontradas (404)
+// Fallback para rutas inexistentes (404)
 app.use((req: Request, res: Response) => {
-    res.status(404).json({ success: false, message: 'Ruta no encontrada en ms-reportes' });
+    res.status(404).json({ ok: false, error: 'Ruta no encontrada en ms-reportes.' });
 });
 
-
-// ============================================================================
-// 🚨 5. MANEJADOR DE ERRORES GLOBAL (DEBE IR AL FINAL)
-// ============================================================================
+// 🚨 4. MANEJADOR DE ERRORES GLOBAL
 app.use(errorHandler);
 
-
-// ============================================================================
-// 🚀 6. INICIALIZACIÓN DEL SERVIDOR
-// ============================================================================
+// 🚀 5. INICIALIZACIÓN DEL SERVIDOR
 const server = app.listen(envs.PORT, async () => {
     console.log(`\n====================================================`);
     console.log(`🌍 MICROSERVICIO MS-REPORTES (FocoCero) ACTIVADO`);
-    console.log(`📡 Puerto: ${envs.PORT}`);
-    
-    // Verificamos que el motor espacial/PostgreSQL esté operativo
+    console.log(`📡 Puerto: ${envs.PORT} | Entorno: ${envs.NODE_ENV}`);
+
     try {
-        await pool.query('SELECT NOW()');
-        console.log(`✅ Conexión a Base de Datos verificada exitosamente.`);
+        await testDbConnection();
     } catch (error) {
-        console.error(`⚠️ Advertencia: No se pudo verificar la base de datos al inicio. Detalle:`, error);
+        console.error(
+            `⚠️ Advertencia: No se pudo verificar la conexión a la BD de Reportes...`,
+            error,
+        );
     }
 
     console.log(`🛡️  Seguridad: Limitador y Escudos Activos`);
-    console.log(`📍 Healthcheck: http://localhost:${envs.PORT}/api/reportes/health`);
     console.log(`📖 Documentación: http://localhost:${envs.PORT}/api/docs`);
     console.log(`====================================================\n`);
 });
 
-
-// ============================================================================
-// 🛑 7. APAGADO ELEGANTE (GRACEFUL SHUTDOWN)
-// ============================================================================
+// 🛑 6. APAGADO ELEGANTE (GRACEFUL SHUTDOWN)
 const gracefulShutdown = async (signal: string) => {
     console.log(`\n🛑 Recibida señal de apagado (${signal}). Deteniendo tráfico HTTP...`);
 
     server.close(async () => {
-        console.log('✅ Servidor HTTP cerrado (no se aceptan nuevas peticiones).');
+        console.log('✅ Servidor HTTP detenido.');
         try {
-            console.log('🛑 Desconectando motor PostgreSQL/PostGIS...');
             await pool.end();
-            console.log('✅ Base de datos desconectada. Apagado exitoso del sistema.');
+            console.log('✅ Conexiones a la base de datos cerradas.');
             process.exit(0);
         } catch (err) {
-            console.error('❌ Error al desconectar la base de datos:', err);
+            console.error('❌ Error al cerrar conexiones DB:', err);
             process.exit(1);
         }
     });
 
-    // Si las peticiones tardan más de 10 segundos en terminar, forzamos el apagado
+    // Fallback de seguridad por si las conexiones de DB se quedan colgadas
     setTimeout(() => {
-        console.error('⚠️ Forzando el apagado tras 10 segundos de espera.');
+        console.error('❌ Cierre forzado por Timeout tras 10s.');
         process.exit(1);
     }, 10000);
 };
 
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));

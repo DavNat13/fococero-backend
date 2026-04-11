@@ -1,40 +1,40 @@
-import dotenv from 'dotenv';
+// ms-reportes/src/config/envs.ts
+import 'dotenv/config';
+import * as env from 'env-var';
 
-dotenv.config();
-
-const requiredEnvs = [
-    'PORT',
-    'DB_USER',
-    'DB_PASSWORD',
-    'DB_HOST',
-    'DB_NAME',
-    'DB_PORT',
-    'FIREBASE_PROJECT_ID',
-    'FIREBASE_CLIENT_EMAIL',
-    'FIREBASE_PRIVATE_KEY',
-    'JWT_SECRET'
-];
-
-requiredEnvs.forEach((envName) => {
-    if (!process.env[envName]) {
-        console.error(`🚨 FATAL ERROR (ms-reportes): Falta la variable de entorno: ${envName}`);
-        // process.exit(1); // Descomentar en producción para evitar arranques fallidos
-    }
-});
+// Detectamos si estamos en la red interna de Docker
+const dbHostRaw = env.get('DB_HOST').asString();
+const isDocker = dbHostRaw === 'db-fococero';
 
 export const envs = {
-    PORT: process.env.PORT || 3004, // Puerto exclusivo de ms-reportes
-    DB_USER: process.env.DB_USER,
-    DB_PASSWORD: process.env.DB_PASSWORD,
-    DB_HOST: process.env.DB_HOST,
-    DB_NAME: process.env.DB_NAME,
-    DB_PORT: process.env.DB_PORT,
+    PORT: env.get('PORT').default(3004).asPortNumber(),
+    NODE_ENV: env.get('NODE_ENV').default('development').asString(),
 
-    // Credenciales de Firebase (con limpieza del salto de línea)
-    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || '',
-    FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL || '',
-    FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n') || '',
+    // Base de Datos - Lógica Híbrida
+    DB_USER: env.get('DB_USER').required().asString(),
+    DB_PASSWORD: env.get('DB_PASSWORD').required().asString(),
+    DB_NAME: env.get('DB_NAME').required().asString(),
 
-    // Seguridad
-    JWT_SECRET: process.env.JWT_SECRET || '',
+    /**
+     * Si detecta 'db-fococero', usa la configuración de contenedor.
+     * Si no, asume desarrollo local y usa el puerto 5433 mapeado en docker-compose.
+     */
+    DB_HOST: isDocker ? dbHostRaw : env.get('DB_HOST_LOCAL').default('localhost').asString(),
+
+    DB_PORT: isDocker
+        ? env.get('DB_PORT').default(5432).asPortNumber()
+        : env.get('DB_PORT_LOCAL').default(5433).asPortNumber(),
+
+    // Firebase Admin SDK
+    FIREBASE_PROJECT_ID: env.get('FIREBASE_PROJECT_ID').required().asString(),
+    FIREBASE_CLIENT_EMAIL: env.get('FIREBASE_CLIENT_EMAIL').required().asString(),
+    FIREBASE_PRIVATE_KEY: env
+        .get('FIREBASE_PRIVATE_KEY')
+        .required()
+        .asString()
+        .replace(/\\n/g, '\n')
+        .replace(/"/g, '')
+        .trim(),
+
+    JWT_SECRET: env.get('JWT_SECRET').required().asString(),
 };
