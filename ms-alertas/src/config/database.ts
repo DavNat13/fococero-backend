@@ -1,3 +1,4 @@
+// ms-alertas/src/config/database.ts
 import { Pool } from 'pg';
 import { envs } from './envs';
 
@@ -5,33 +6,40 @@ export const pool = new Pool({
     user: envs.DB_USER,
     password: envs.DB_PASSWORD,
     host: envs.DB_HOST,
-    port: Number(envs.DB_PORT),
+    port: envs.DB_PORT,
     database: envs.DB_NAME,
-
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
 });
 
 pool.on('connect', () => {
-    console.log('📦 Conectado exitosamente a PostgreSQL (FocoCero DB - Alertas)');
+    console.log('📦 [DB] Pool de conexiones PostgreSQL inicializado.');
 });
 
 pool.on('error', (err: Error) => {
-    console.error(
-        '❌ Error fatal o pérdida de conexión con PostgreSQL en ms-alertas:',
-        err.message,
-    );
-    process.exit(-1);
+    console.error('❌ [DB] Error inesperado en el Pool:', err.message);
 });
 
-// Función para probar la conexión al levantar el servidor
 export const testDbConnection = async () => {
     const client = await pool.connect();
     try {
         const res = await client.query('SELECT NOW()');
-        console.log(`📡 Motor PostgreSQL Operativo. Hora del servidor DB: ${res.rows[0].now}`);
+        console.log(`📡 [DB] PostGIS Operativo. Server Time: ${res.rows[0].now}`);
     } finally {
         client.release();
     }
 };
+
+/**
+ * Graceful Shutdown: Cierra el pool ordenadamente cuando se detiene el microservicio.
+ * Vital para evitar saturar el servidor DB en despliegues con Docker/K8s.
+ */
+const closePool = async () => {
+    console.log('🛑 [DB] Cerrando pool de conexiones...');
+    await pool.end();
+    console.log('✅ [DB] Pool cerrado.');
+};
+
+process.on('SIGTERM', closePool);
+process.on('SIGINT', closePool);

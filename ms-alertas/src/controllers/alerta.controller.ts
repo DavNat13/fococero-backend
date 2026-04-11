@@ -1,23 +1,17 @@
-// ==========================================
-// 🎮 CONTROLADOR: MS-ALERTAS
-// ==========================================
-
+// src/controllers/alerta.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import { AlertaService } from '../services/alerta.service';
 
 export class AlertaController {
-    // ============================================================================
     // 🟢 CREACIÓN
-    // ============================================================================
     static async crear(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            // Usamos (req as any) para evitar errores de TypeScript con el objeto user inyectado
             const alertaData = {
                 ...req.body,
-                // ✅ FIX: Busca ambas posibilidades dependiendo del Auth Middleware
-                usuario_id: (req as any).user?.uid || (req as any).user?.firebase_uid,
+                usuario_id: req.user!.uid,
             };
             const nuevaAlerta = await AlertaService.crearAlerta(alertaData);
+
             res.status(201).json({
                 ok: true,
                 msg: 'Alerta registrada con éxito.',
@@ -28,9 +22,7 @@ export class AlertaController {
         }
     }
 
-    // ============================================================================
     // 🔵 LECTURAS Y CONSULTAS
-    // ============================================================================
     static async obtenerCercanas(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const lng = parseFloat(req.query.lng as string);
@@ -40,13 +32,13 @@ export class AlertaController {
             if (isNaN(lng) || isNaN(lat)) {
                 res.status(400).json({
                     ok: false,
-                    error: 'Faltan parámetros de coordenadas (lng, lat).',
+                    error: 'Coordenadas espaciales inválidas o faltantes.',
                 });
                 return;
             }
 
             const alertas = await AlertaService.obtenerCercanas(lng, lat, radio);
-            res.status(200).json({ ok: true, resultados: alertas.length, data: alertas });
+            res.status(200).json({ ok: true, data: alertas });
         } catch (error) {
             next(error);
         }
@@ -54,19 +46,8 @@ export class AlertaController {
 
     static async obtenerMisAlertas(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            // ✅ FIX: Blindaje aplicado también al historial personal
-            const usuarioId = ((req as any).user?.uid || (req as any).user?.firebase_uid) as string;
-            const alertas = await AlertaService.obtenerPorUsuario(usuarioId);
-            res.status(200).json({ ok: true, resultados: alertas.length, data: alertas });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    static async obtenerTodas(req: Request, res: Response, next: NextFunction): Promise<void> {
-        try {
-            const alertas = await AlertaService.obtenerTodas();
-            res.status(200).json({ ok: true, resultados: alertas.length, data: alertas });
+            const alertas = await AlertaService.obtenerPorUsuario(req.user!.uid);
+            res.status(200).json({ ok: true, data: alertas });
         } catch (error) {
             next(error);
         }
@@ -74,7 +55,8 @@ export class AlertaController {
 
     static async obtenerPorId(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const id = req.params.id as string;
+            // ✅ FIX: Forzamos el casteo a string primitivo
+            const id = String(req.params.id);
             const alerta = await AlertaService.obtenerPorId(id);
             res.status(200).json({ ok: true, data: alerta });
         } catch (error) {
@@ -82,24 +64,25 @@ export class AlertaController {
         }
     }
 
-    // ============================================================================
-    // 🟠 ACTUALIZACIONES OPERATIVAS
-    // ============================================================================
+    static async obtenerTodas(_req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const alertas = await AlertaService.obtenerTodas();
+            res.status(200).json({ ok: true, data: alertas });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    // 🟠 ACTUALIZACIÓN OPERATIVA
     static async cambiarEstado(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const id = req.params.id as string;
-            const { estado } = req.body;
-
-            if (!estado) {
-                res.status(400).json({ ok: false, error: 'El campo "estado" es obligatorio.' });
-                return;
-            }
-
-            const alertaActualizada = await AlertaService.cambiarEstado(id, estado);
+            // ✅ FIX: Forzamos el casteo a string primitivo
+            const id = String(req.params.id);
+            const alerta = await AlertaService.cambiarEstado(id, req.body.estado);
             res.status(200).json({
                 ok: true,
-                msg: `Estado actualizado a ${estado}.`,
-                data: alertaActualizada,
+                msg: 'Estado de la alerta actualizado.',
+                data: alerta,
             });
         } catch (error) {
             next(error);
@@ -108,18 +91,20 @@ export class AlertaController {
 
     static async verificar(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const id = req.params.id as string;
+            // ✅ FIX: Forzamos el casteo a string primitivo
+            const id = String(req.params.id);
             const { esFuegoConfirmado } = req.body;
 
             if (typeof esFuegoConfirmado !== 'boolean') {
                 res.status(400).json({
                     ok: false,
-                    error: 'Debe indicar "esFuegoConfirmado" como booleano (true/false).',
+                    error: 'Debe indicar "esFuegoConfirmado" como booleano.',
                 });
                 return;
             }
 
             const alertaVerificada = await AlertaService.verificarAlerta(id, esFuegoConfirmado);
+
             res.status(200).json({
                 ok: true,
                 msg: esFuegoConfirmado
@@ -132,14 +117,13 @@ export class AlertaController {
         }
     }
 
-    // ============================================================================
     // 🔴 ELIMINACIÓN
-    // ============================================================================
     static async eliminar(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const id = req.params.id as string;
+            // ✅ FIX: Forzamos el casteo a string primitivo
+            const id = String(req.params.id);
             await AlertaService.eliminar(id);
-            res.status(200).json({ ok: true, msg: 'La alerta ha sido eliminada del mapa.' });
+            res.status(200).json({ ok: true, msg: 'La alerta ha sido eliminada del sistema.' });
         } catch (error) {
             next(error);
         }

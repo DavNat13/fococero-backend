@@ -1,5 +1,4 @@
-// src/@types/express/index.d.ts
-
+// ms-reportes/src/@types/express/index.d.ts
 import { UserRole } from '../../models/user.enum'; // Asegúrate de que esta ruta coincida con tu enum
 
 declare global {
@@ -7,7 +6,7 @@ declare global {
         export interface Request {
             user?: {
                 uid: string;
-                email: string;
+                email?: string;
                 rol: UserRole | string;
             };
         }

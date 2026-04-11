@@ -2,32 +2,43 @@ name: CI/CD Pipeline - ms-geo
 
 on:
   push:
-    branches: ["main", "develop"]
+    branches: ["main", "develop", "feature/*"]
     paths:
-      - "ms-geo/**" #
+      - "ms-geo/**"
   pull_request:
     branches: ["main", "develop"]
+    paths:
+      - "ms-geo/**"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./ms-geo #
+        working-directory: ./ms-geo
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
         with:
-          node-version: "22" #
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: "./ms-geo/package-lock.json"
 
-      - name: Install
+      - name: Install dependencies
         run: npm ci
-      - name: Lint
-        run: npm run lint
-      - name: Test
-        run: npm run test
-      - name: Build
+
+      - name: Run Linter
+        run: npm run lint --if-present
+
+      - name: Run Tests
+        run: npm run test --if-present
+
+      - name: Build Project
         run: npm run build

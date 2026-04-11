@@ -1,63 +1,67 @@
 // api-gateway/src/routes/routes.ts
 
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { createProxyMiddleware, Options } from "http-proxy-middleware";
+import { ClientRequest, IncomingMessage, ServerResponse } from "http";
+import { Socket } from "net";
 import { envs } from "../config/envs";
 import { verifyToken } from "../middlewares/auth.middleware";
 import { traceIdMiddleware } from "../middlewares/traceId";
 
 export const appRoutes = Router();
 
-/**
- * 🛠️ CONFIGURACIÓN MAESTRA DEL PROXY
- * @param target URL del microservicio (ej: http://ms-geo:3002)
- * @param pathPrefix El prefijo que Postman usa y que debemos quitar (ej: /api/geo)
- * @param requiresAuth Si el Gateway debe inyectar cabeceras de usuario
- */
-const getProxyOptions = (
-  target: string,
-  pathPrefix: string,
-  requiresAuth: boolean,
-): Options => ({
-  target,
-  changeOrigin: true,
-  pathRewrite: {
-    [`^${pathPrefix}`]: "", // Recorte exacto del prefijo
-  },
-  on: {
-    proxyReq: (proxyReq, req: any) => {
-      // 1. Auditoría: Inyectamos el ID de rastreo único
-      proxyReq.setHeader("x-request-id", req.headers["x-request-id"] || "");
-
-      // 2. Identidad: Si el Gateway validó el token, pasamos los datos al microservicio
-      if (requiresAuth && req.user) {
-        proxyReq.setHeader("x-user-id", req.user.id.toString() || "");
-        proxyReq.setHeader("x-user-email", req.user.email || "");
-        proxyReq.setHeader("x-user-role", req.user.rol || "user");
-      }
-    },
-    error: (err, _req, res: any) => {
-      console.error(
-        `🔴 [Gateway Proxy Error] en ruteo a ${target}: ${err.message}`,
-      );
-      res.status(503).json({
-        success: false,
-        message:
-          "Servicio temporalmente fuera de línea. Reintentando conexión...",
-      });
-    },
-  },
-});
-
 // ============================================================================
-// 🩺 INFRAESTRUCTURA (Público)
+// 🏥 HEALTHCHECK (Monitoreo del Gateway)
 // ============================================================================
-appRoutes.get("/health", (_req, res) => {
+appRoutes.get("/health", (_req: Request, res: Response) => {
   res.json({
     status: "OK",
     service: "FocoCero-Gateway",
-    time: new Date().toISOString(),
+    timestamp: new Date().toISOString(),
   });
+});
+
+// ============================================================================
+// 🛠️ CONFIGURACIÓN MAESTRA DEL PROXY
+// ============================================================================
+const getProxyOptions = (target: string): Options => ({
+  target,
+  changeOrigin: true,
+
+  on: {
+    proxyReq: (
+      proxyReq: ClientRequest,
+      req: IncomingMessage,
+      _res: ServerResponse,
+    ) => {
+      const traceId = req.headers["x-trace-id"];
+
+      if (traceId) {
+        const id = Array.isArray(traceId) ? traceId[0] : traceId;
+        proxyReq.setHeader("x-trace-id", id);
+      }
+    },
+
+    error: (err: Error, req: IncomingMessage, res: ServerResponse | Socket) => {
+      const traceId = req.headers["x-trace-id"] || "N/A";
+      console.error(
+        `🚨 [Proxy Error | Trace: ${traceId}] No se pudo alcanzar: ${target} - ${err.message}`,
+      );
+
+      if ("writeHead" in res) {
+        if (!res.headersSent) {
+          res.writeHead(502, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              success: false,
+              message:
+                "El servicio solicitado está temporalmente fuera de línea o reiniciándose.",
+            }),
+          );
+        }
+      }
+    },
+  },
 });
 
 // ============================================================================
@@ -65,51 +69,38 @@ appRoutes.get("/health", (_req, res) => {
 // ============================================================================
 
 /**
- * 🔐 AUTH SERVICE (Público)
- * El microservicio maneja su propia seguridad interna.
+ * 🔐 AUTH SERVICE
  */
 appRoutes.use(
   "/api/auth",
   traceIdMiddleware,
-  createProxyMiddleware(
-    getProxyOptions(envs.AUTH_SERVICE_URL, "/api/auth", false),
-  ),
+  createProxyMiddleware(getProxyOptions(envs.AUTH_SERVICE_URL)),
 );
 
 /**
- * 🗺️ GEO SERVICE (Híbrido)
- * IMPORTANTE: Quitamos 'verifyToken' del Gateway para permitir GETs públicos.
- * El microservicio ms-geo decidirá internamente qué rutas proteger.
+ * 🗺️ GEO SERVICE
  */
 appRoutes.use(
   "/api/geo",
   traceIdMiddleware,
-  createProxyMiddleware(
-    getProxyOptions(envs.GEO_SERVICE_URL, "/api/geo", false),
-  ),
+  createProxyMiddleware(getProxyOptions(envs.GEO_SERVICE_URL)),
 );
 
 /**
- * ⚠️ ALERTAS SERVICE (Privado)
- * Requiere validación del Gateway antes de siquiera intentar el proxy.
+ * 📱 REPORTES SERVICE
+ */
+appRoutes.use(
+  "/api/reportes",
+  traceIdMiddleware,
+  createProxyMiddleware(getProxyOptions(envs.REPORTES_SERVICE_URL)),
+);
+
+/**
+ * ⚠️ ALERTAS SERVICE (100% Privado)
  */
 appRoutes.use(
   "/api/alertas",
   traceIdMiddleware,
   verifyToken,
-  createProxyMiddleware(
-    getProxyOptions(envs.ALERTAS_SERVICE_URL, "/api/alertas", true),
-  ),
-);
-
-/**
- * 📊 REPORTES SERVICE (Privado)
- */
-appRoutes.use(
-  "/api/reportes",
-  traceIdMiddleware,
-  verifyToken,
-  createProxyMiddleware(
-    getProxyOptions(envs.REPORTES_SERVICE_URL, "/api/reportes", true),
-  ),
+  createProxyMiddleware(getProxyOptions(envs.ALERTAS_SERVICE_URL)),
 );

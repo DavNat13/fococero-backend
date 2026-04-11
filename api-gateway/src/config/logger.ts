@@ -1,18 +1,19 @@
 import morgan from "morgan";
 import { envs } from "./envs";
 
-// Formato JSON personalizado para Producción (Fácil de leer para Datadog/CloudWatch)
+// Formato estructurado para sistemas de logs (Datadog, CloudWatch, ELK)
 const jsonFormat = (tokens: any, req: any, res: any) => {
   return JSON.stringify({
+    timestamp: new Date().toISOString(),
     method: tokens.method(req, res),
     url: tokens.url(req, res),
     status: Number(tokens.status(req, res)),
-    response_time_ms: Number(tokens["response-time"](req, res)),
+    responseTime: `${tokens["response-time"](req, res)}ms`,
     ip: tokens["remote-addr"](req, res),
-    timestamp: new Date().toISOString(),
+    userAgent: tokens["user-agent"](req, res),
+    traceId: req.headers["x-trace-id"] || "N/A",
   });
 };
 
-// Exportamos el middleware de Morgan ya pre-configurado
 export const morganLogger =
   envs.NODE_ENV === "production" ? morgan(jsonFormat) : morgan("dev");

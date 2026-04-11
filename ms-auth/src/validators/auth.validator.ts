@@ -1,9 +1,24 @@
+// ms-auth/src/validators/auth.validator.ts
+
 import { RutHelper } from '../helpers/rut.helper';
 import { UserRole, UserStatus } from '../models/user.enum';
+import { Usuario } from '../models/user.model';
+
+// Definición de Interfaces (Contratos de Entrada) para erradicar 'any'
+export interface GuestRegisterDTO {
+    rut: string;
+    nombre: string;
+    apellido: string;
+    telefono: string;
+}
+
+export interface FullRegisterDTO extends GuestRegisterDTO {
+    token: string;
+}
 
 /**
  * AuthValidator: Capa de sanitización y validación de entrada.
- * Aplica la filosofía "Zero Trust" (Nunca confíes en el frontend).
+ * Aplica la filosofía "Zero Trust" (Nunca confíes en el frontend ni en la red).
  */
 export class AuthValidator {
     /**
@@ -20,7 +35,7 @@ export class AuthValidator {
         let multiplo = 2;
 
         for (let i = body.length - 1; i >= 0; i--) {
-            suma += parseInt(body[i]) * multiplo;
+            suma += parseInt(body[i], 10) * multiplo;
             multiplo = multiplo === 7 ? 2 : multiplo + 1;
         }
 
@@ -35,7 +50,8 @@ export class AuthValidator {
 
     // --- 🟢 VALIDADORES DE CREACIÓN ---
 
-    static validateGuest(data: any): { isValid: boolean; error?: string } {
+    // ✅ FIX: Reemplazo de 'any' por Interface explícita GuestRegisterDTO
+    static validateGuest(data: GuestRegisterDTO): { isValid: boolean; error?: string } {
         const { rut, nombre, apellido, telefono } = data;
 
         if (!rut || !this.isValidRut(rut)) {
@@ -71,7 +87,8 @@ export class AuthValidator {
         return { isValid: true };
     }
 
-    static validateFullRegister(data: any): { isValid: boolean; error?: string } {
+    // ✅ FIX: Reemplazo de 'any' por Interface explícita FullRegisterDTO
+    static validateFullRegister(data: FullRegisterDTO): { isValid: boolean; error?: string } {
         const guestValidation = this.validateGuest(data);
         if (!guestValidation.isValid) return guestValidation;
 
@@ -87,11 +104,8 @@ export class AuthValidator {
 
     // --- 🟡 VALIDADORES DE ACTUALIZACIÓN ---
 
-    /**
-     * Valida la actualización parcial del perfil.
-     * Solo evalúa los campos que el usuario decide enviar.
-     */
-    static validateProfileUpdate(data: any): { isValid: boolean; error?: string } {
+    // ✅ FIX: Usamos el tipo Partial<Usuario> en lugar de 'any'
+    static validateProfileUpdate(data: Partial<Usuario>): { isValid: boolean; error?: string } {
         const nameRegex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
 
         if (data.rut && !this.isValidRut(data.rut)) {
@@ -115,15 +129,19 @@ export class AuthValidator {
 
     // --- 🔴 VALIDADORES ADMINISTRATIVOS ---
 
-    static validateRoleChange(data: any): { isValid: boolean; error?: string } {
-        if (!data.rol || !Object.values(UserRole).includes(data.rol)) {
+    // ✅ FIX: Uso de Record para tipado dinámico genérico en lugar de any
+    static validateRoleChange(data: Record<string, unknown>): { isValid: boolean; error?: string } {
+        if (!data.rol || !Object.values(UserRole).includes(data.rol as UserRole)) {
             return { isValid: false, error: 'El rol proporcionado no es válido en el sistema.' };
         }
         return { isValid: true };
     }
 
-    static validateStatusChange(data: any): { isValid: boolean; error?: string } {
-        if (!data.estado || !Object.values(UserStatus).includes(data.estado)) {
+    static validateStatusChange(data: Record<string, unknown>): {
+        isValid: boolean;
+        error?: string;
+    } {
+        if (!data.estado || !Object.values(UserStatus).includes(data.estado as UserStatus)) {
             return { isValid: false, error: 'El estado proporcionado no es válido.' };
         }
         return { isValid: true };

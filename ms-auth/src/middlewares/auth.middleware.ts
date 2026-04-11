@@ -3,68 +3,61 @@
 import { Request, Response, NextFunction } from 'express';
 import admin from '../config/firebase';
 import { UserRepository } from '../repositories/user.repository';
-import { UserStatus, UserRole } from '../models/user.enum';
+import { UserStatus } from '../models/user.enum'; // Asegúrate de que esta ruta sea correcta
 
-interface AuthenticatedRequest extends Request {
-    user?: any;
-}
-
+/**
+ * Middleware: Autenticación Operativa (Identity Provider)
+ * Intercepta peticiones privadas, valida la firma criptográfica de Google y
+ * recupera el perfil completo del usuario de la base de datos (PostgreSQL).
+ */
 export const validateFirebaseToken = async (
-    req: AuthenticatedRequest,
+    req: Request,
     res: Response,
     next: NextFunction,
 ): Promise<void> => {
     try {
+        // 1. Escudo Perimetral: Rechazo temprano si no hay token
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            res.status(401).json({ ok: false, msg: 'Acceso denegado.' });
+            res.status(401).json({
+                ok: false,
+                msg: 'Acceso denegado: Token Bearer no proporcionado.',
+            });
             return;
         }
 
         const token = authHeader.split(' ')[1];
 
-        // Normalizamos el entorno quitando espacios accidentales
-        const currentEnv = (process.env.NODE_ENV || 'development').trim();
+        // 2. Escudo Criptográfico: Verificación contra los servidores de Google
+        const decodedToken = await admin.auth().verifyIdToken(token);
 
-        // 🟢 BYPASS DE DESARROLLO MEJORADO
-        if (token === 'fococero_test_token' && currentEnv !== 'production') {
-            req.user = {
-                id: 999,
-                firebase_uid: 'test-admin-uid',
-                email: 'admin-test@fococero.cl',
-                rol: UserRole.ADMIN,
-                estado: UserStatus.ACTIVO,
-            };
-            return next();
-        }
+        // 3. Escudo de Identidad Local: Buscar al usuario en nuestro PostgreSQL
+        const user = await UserRepository.findByFirebaseUid(decodedToken.uid);
 
-        // 🔴 VALIDACIÓN REAL (FIREBASE)
-        let decodedToken;
-        try {
-            decodedToken = await admin.auth().verifyIdToken(token);
-        } catch (firebaseError: any) {
-            res.status(401).json({
+        if (!user) {
+            res.status(403).json({
                 ok: false,
-                msg: 'Token inválido o el servidor está en modo producción.',
-                error: firebaseError.code,
+                msg: 'Identidad de Google válida, pero el usuario no está registrado en el ecosistema FocoCero.',
             });
             return;
         }
 
-        const user = await UserRepository.findByFirebaseUid(decodedToken.uid);
-        if (!user) {
-            res.status(403).json({ ok: false, msg: 'Usuario no registrado.' });
-            return;
-        }
-
+        // 4. Protección Enterprise: Verificar ciclo de vida del usuario
         if (user.estado !== UserStatus.ACTIVO) {
-            res.status(403).json({ ok: false, msg: 'Cuenta inactiva.' });
+            res.status(403).json({
+                ok: false,
+                msg: `Cuenta inhabilitada. Estado actual: ${user.estado}. Contacte a soporte técnico.`,
+            });
             return;
         }
 
+        // 5. Inyección Tipada: Delegamos el objeto 'Usuario' completo a la Request.
+        // Gracias a tu index.d.ts, TypeScript autocompletará req.user en los controladores.
         req.user = user;
+
         next();
-    } catch (error: any) {
-        res.status(500).json({ ok: false, msg: 'Error interno del servidor.' });
+    } catch (error: unknown) {
+        // Delegamos errores de caducidad o falsificación al error.middleware.ts
+        next(error);
     }
 };

@@ -1,13 +1,18 @@
+// api-gateway/src/docs/geo.swagger.ts
+
 export const geoPaths = {
+  // ============================================================================
+  // 🔓 ZONA CIUDADANA (Rutas Públicas)
+  // ============================================================================
   "/api/geo": {
     get: {
       tags: ["Geolocalización (ms-geo)"],
-      summary: "Obtener todos los focos activos",
+      summary: "Obtener mapa global de focos activos",
       description:
-        "Recupera el listado completo de incidentes geolocalizados que no han sido eliminados lógicamente.",
+        "Recupera todos los incidentes geolocalizados que están en curso. Ideal para el mapa público de la App.",
       responses: {
         "200": {
-          description: "Listado de focos obtenido exitosamente",
+          description: "Listado de focos obtenido con éxito",
           content: {
             "application/json": {
               schema: {
@@ -27,9 +32,9 @@ export const geoPaths = {
     },
     post: {
       tags: ["Geolocalización (ms-geo)"],
-      summary: "Reportar Foco (Ciudadano)",
+      summary: "Reportar nuevo foco (Ciudadano)",
       description:
-        "Crea un nuevo reporte de incendio. El motor GeoHelper calculará automáticamente la severidad basada en el viento y la amenaza a viviendas.",
+        "Crea un reporte de incendio inicial. El sistema calculará automáticamente la severidad basada en factores climáticos.",
       requestBody: {
         required: true,
         content: {
@@ -38,70 +43,72 @@ export const geoPaths = {
               type: "object",
               required: ["latitud", "longitud", "tipo_incidente"],
               properties: {
-                latitud: { type: "number", example: -33.4372 },
-                longitud: { type: "number", example: -70.6506 },
+                latitud: { type: "number", example: -33.4489 },
+                longitud: { type: "number", example: -70.6693 },
                 tipo_incidente: {
                   type: "string",
                   example: "Incendio Forestal",
                 },
                 detalles: {
                   type: "string",
-                  example: "Fuego cerca de zona residencial",
+                  example: "Humo negro visible desde la ruta.",
                 },
-                viento_velocidad_kmh: { type: "number", example: 25 },
-                viento_direccion: { type: "string", example: "Norte" },
-                amenaza_viviendas: { type: "boolean", example: true },
+                viento_velocidad_kmh: { type: "number", example: 15 },
+                amenaza_viviendas: { type: "boolean", example: false },
               },
             },
           },
         },
       },
       responses: {
-        "201": { description: "Incendio reportado y geolocalizado con éxito" },
-        "400": { description: "Error de validación en los datos espaciales" },
+        "201": { description: "Foco registrado y severidad calculada." },
+        "400": {
+          description: "Coordenadas fuera de rango (Chile) o datos inválidos.",
+        },
       },
     },
   },
+
   "/api/geo/cercanos": {
     get: {
       tags: ["Geolocalización (ms-geo)"],
-      summary: "Radar PostGIS (Búsqueda por Radio)",
+      summary: "Radar de cercanía (PostGIS)",
       description:
-        "Utiliza funciones espaciales para encontrar focos dentro de un radio en metros desde un punto dado.",
+        "Busca incidentes en un radio circular específico utilizando funciones geográficas de alta precisión.",
       parameters: [
         {
           name: "lat",
           in: "query",
           required: true,
           schema: { type: "number" },
-          example: -33.4372,
+          example: -35.42,
         },
         {
           name: "lng",
           in: "query",
           required: true,
           schema: { type: "number" },
-          example: -70.6506,
+          example: -71.65,
         },
         {
           name: "radio",
           in: "query",
           required: true,
           schema: { type: "integer" },
+          description: "Distancia en metros (ej: 5000 para 5km)",
           example: 5000,
-          description: "Radio en metros",
         },
       ],
       responses: {
-        "200": { description: "Focos cercanos encontrados" },
-        "400": { description: "Faltan parámetros espaciales obligatorios" },
+        "200": { description: "Lista de focos dentro del radio de búsqueda." },
       },
     },
   },
+
   "/api/geo/{id}": {
     get: {
       tags: ["Geolocalización (ms-geo)"],
-      summary: "Detalle de un Reporte",
+      summary: "Detalle completo de un foco",
       parameters: [
         {
           name: "id",
@@ -111,15 +118,19 @@ export const geoPaths = {
         },
       ],
       responses: {
-        "200": { description: "Detalle del reporte obtenido" },
-        "404": { description: "Reporte no encontrado o eliminado" },
+        "200": {
+          description: "Datos detallados incluyendo perímetro WKT si existe.",
+        },
+        "404": { description: "El foco no existe o fue eliminado." },
       },
     },
+    // ✅ Endpoint restaurado: Actualización Integral
     put: {
       tags: ["Geolocalización (ms-geo)"],
-      summary: "Actualización Integral",
+      summary: "Actualización integral (Brigadista)",
       description:
-        "Actualiza variables climáticas y de riesgo. Recalcula severidad automáticamente.",
+        "Permite modificar variables climáticas y de riesgo. El sistema recalculará la severidad del incendio.",
+      security: [{ bearerAuth: [] }],
       parameters: [
         {
           name: "id",
@@ -129,7 +140,6 @@ export const geoPaths = {
         },
       ],
       requestBody: {
-        required: true,
         content: {
           "application/json": {
             schema: {
@@ -145,12 +155,13 @@ export const geoPaths = {
         },
       },
       responses: {
-        "200": { description: "Información integral actualizada" },
+        "200": { description: "Incendio actualizado y severidad re-evaluada." },
       },
     },
     delete: {
       tags: ["Geolocalización (ms-geo)"],
-      summary: "Eliminación Lógica (Soft Delete)",
+      summary: "Eliminar reporte (Soft Delete)",
+      security: [{ bearerAuth: [] }],
       parameters: [
         {
           name: "id",
@@ -159,15 +170,20 @@ export const geoPaths = {
           schema: { type: "string", format: "uuid" },
         },
       ],
-      responses: {
-        "200": { description: "Reporte removido del mapa táctico" },
-      },
+      responses: { "200": { description: "Reporte marcado como eliminado." } },
     },
   },
+
+  // ============================================================================
+  // 🛡️ ZONA OPERATIVA (Requiere Token)
+  // ============================================================================
   "/api/geo/{id}/estado": {
     patch: {
       tags: ["Geolocalización (ms-geo)"],
-      summary: "Cambiar Estado Operativo",
+      summary: "Cambiar estado operativo",
+      description:
+        "Actualiza el ciclo de vida del incendio (Ej: de 'Reportado' a 'En Combate').",
+      security: [{ bearerAuth: [] }],
       parameters: [
         {
           name: "id",
@@ -182,7 +198,6 @@ export const geoPaths = {
           "application/json": {
             schema: {
               type: "object",
-              required: ["estado"],
               properties: {
                 estado: {
                   type: "string",
@@ -194,24 +209,23 @@ export const geoPaths = {
                     "Extinguido",
                     "Falsa Alarma",
                   ],
-                  example: "En Combate",
                 },
               },
             },
           },
         },
       },
-      responses: {
-        "200": { description: "Estado operativo actualizado" },
-      },
+      responses: { "200": { description: "Estado actualizado exitosamente." } },
     },
   },
+
   "/api/geo/{id}/perimetro": {
     patch: {
       tags: ["Geolocalización (ms-geo)"],
-      summary: "Actualizar Perímetro (WKT Polígono)",
+      summary: "Actualizar polígono del área quemada",
       description:
-        "Permite trazar el área afectada usando formato Well-Known Text (WKT).",
+        "Recibe una cadena en formato WKT para representar polígonos o multipolígonos espaciales.",
+      security: [{ bearerAuth: [] }],
       parameters: [
         {
           name: "id",
@@ -226,13 +240,11 @@ export const geoPaths = {
           "application/json": {
             schema: {
               type: "object",
-              required: ["area_quemada_wkt"],
               properties: {
                 area_quemada_wkt: {
                   type: "string",
                   example:
-                    "POLYGON((-70.65 -33.43, -70.64 -33.43, -70.64 -33.44, -70.65 -33.44, -70.65 -33.43))",
-                  description: "Polígono en formato WKT",
+                    "POLYGON((-71.6 -35.4, -71.5 -35.4, -71.5 -35.5, -71.6 -35.5, -71.6 -35.4))",
                 },
               },
             },
@@ -240,7 +252,9 @@ export const geoPaths = {
         },
       },
       responses: {
-        "200": { description: "Perímetro espacial actualizado en PostGIS" },
+        "200": {
+          description: "Perímetro guardado en la base de datos geográfica.",
+        },
       },
     },
   },
@@ -260,7 +274,8 @@ export const geoSchemas = {
       estado: { type: "string" },
       latitud: { type: "number" },
       longitud: { type: "number" },
-      perimetro_wkt: { type: "string", nullable: true },
+      viento_velocidad_kmh: { type: "number" },
+      amenaza_viviendas: { type: "boolean" },
       created_at: { type: "string", format: "date-time" },
     },
   },

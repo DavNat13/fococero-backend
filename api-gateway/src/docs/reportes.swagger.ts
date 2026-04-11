@@ -1,47 +1,26 @@
+// api-gateway/src/docs/reportes.swagger.ts
+
 export const reportesPaths = {
-  "/api/reportes": {
+  // --- CATEGORÍAS ---
+  "/api/reportes/categorias": {
     get: {
       tags: ["Reportes (ms-reportes)"],
-      summary: "Listar Reportes (Paginados)",
+      summary: "Obtener catálogo de categorías de incidentes",
       description:
-        "Recupera todos los reportes de incidentes. Los administradores ven todo el listado, mientras que los ciudadanos ven los reportes de su zona (lógica interna del service).",
+        "Retorna la lista de categorías activas (Ej: Incendio Forestal, Quema Ilegal) con sus niveles de prioridad.",
       security: [{ bearerAuth: [] }],
-      parameters: [
-        {
-          name: "limit",
-          in: "query",
-          description: "Cantidad de registros a retornar",
-          required: false,
-          schema: { type: "integer", default: 10 },
-        },
-        {
-          name: "offset",
-          in: "query",
-          description: "Cantidad de registros a saltar",
-          required: false,
-          schema: { type: "integer", default: 0 },
-        },
-      ],
       responses: {
         "200": {
-          description: "Listado obtenido con éxito",
+          description: "Catálogo obtenido",
           content: {
             "application/json": {
               schema: {
                 type: "object",
                 properties: {
-                  ok: { type: "boolean", example: true },
+                  ok: { type: "boolean" },
                   data: {
                     type: "array",
-                    items: { $ref: "#/components/schemas/Reporte" },
-                  },
-                  paginacion: {
-                    type: "object",
-                    properties: {
-                      total: { type: "integer", example: 100 },
-                      limit: { type: "integer", example: 10 },
-                      offset: { type: "integer", example: 0 },
-                    },
+                    items: { $ref: "#/components/schemas/Categoria" },
                   },
                 },
               },
@@ -49,12 +28,32 @@ export const reportesPaths = {
           },
         },
       },
+    },
+  },
+
+  // --- REPORTES GENERALES ---
+  "/api/reportes": {
+    get: {
+      tags: ["Reportes (ms-reportes)"],
+      summary: "Listar todos los reportes (Paginado)",
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: "limit",
+          in: "query",
+          schema: { type: "integer", default: 10 },
+        },
+        {
+          name: "offset",
+          in: "query",
+          schema: { type: "integer", default: 0 },
+        },
+      ],
+      responses: { "200": { description: "Listado obtenido" } },
     },
     post: {
       tags: ["Reportes (ms-reportes)"],
-      summary: "Crear Nuevo Reporte",
-      description:
-        "Permite registrar un incidente. El ID del ciudadano se extrae automáticamente del token de Firebase para mayor seguridad.",
+      summary: "Crear nuevo reporte ciudadano",
       security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
@@ -62,58 +61,37 @@ export const reportesPaths = {
           "application/json": {
             schema: {
               type: "object",
-              required: [
-                "categoria_id",
-                "titulo",
-                "descripcion",
-                "latitud",
-                "longitud",
-              ],
+              required: ["titulo", "latitud", "longitud", "categoria_id"],
               properties: {
-                categoria_id: {
-                  type: "string",
-                  format: "uuid",
-                  example: "550e8400-e29b-41d4-a716-446655440000",
-                },
-                titulo: {
-                  type: "string",
-                  example: "Humo denso en ladera de cerro",
-                },
-                descripcion: {
-                  type: "string",
-                  example: "Se aprecia fuego cerca de torres de alta tensión.",
-                },
-                latitud: { type: "number", example: -33.045 },
-                longitud: { type: "number", example: -71.612 },
-                metadata: {
-                  type: "object",
-                  description:
-                    "Datos dinámicos adicionales (clima, fotos, etc.)",
-                  properties: {
-                    clima_momento: { type: "string", example: "Despejado" },
-                    temperatura: { type: "number", example: 28.5 },
-                    fotos_urls: {
-                      type: "array",
-                      items: { type: "string" },
-                      example: ["https://bucket.s3/foto1.jpg"],
-                    },
-                  },
-                },
+                titulo: { type: "string" },
+                descripcion: { type: "string" },
+                latitud: { type: "number" },
+                longitud: { type: "number" },
+                categoria_id: { type: "string", format: "uuid" },
               },
             },
           },
         },
       },
-      responses: {
-        "201": { description: "Reporte creado exitosamente" },
-        "400": { description: "Error de validación (Zod)" },
-      },
+      responses: { "201": { description: "Reporte creado exitosamente" } },
     },
   },
+
+  "/api/reportes/me": {
+    get: {
+      tags: ["Reportes (ms-reportes)"],
+      summary: "Obtener mis reportes enviados",
+      description:
+        "Filtra automáticamente los reportes asociados al UID del token del ciudadano.",
+      security: [{ bearerAuth: [] }],
+      responses: { "200": { description: "Listado personal obtenido" } },
+    },
+  },
+
   "/api/reportes/{id}": {
     get: {
       tags: ["Reportes (ms-reportes)"],
-      summary: "Detalle de Reporte",
+      summary: "Obtener detalle de un reporte",
       security: [{ bearerAuth: [] }],
       parameters: [
         {
@@ -121,21 +99,60 @@ export const reportesPaths = {
           in: "path",
           required: true,
           schema: { type: "string", format: "uuid" },
-          description: "ID único del reporte",
         },
       ],
-      responses: {
-        "200": { description: "Detalle obtenido" },
-        "404": { description: "El reporte solicitado no existe" },
+      responses: { "200": { description: "Detalle del reporte" } },
+    },
+    patch: {
+      tags: ["Reportes (ms-reportes)"],
+      summary: "Actualizar información del reporte",
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        },
+      ],
+      requestBody: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                titulo: { type: "string" },
+                descripcion: { type: "string" },
+              },
+            },
+          },
+        },
       },
+      responses: { "200": { description: "Reporte actualizado" } },
+    },
+    delete: {
+      tags: ["Reportes (ms-reportes)"],
+      summary: "Eliminar reporte (Soft Delete)",
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        },
+      ],
+      responses: { "200": { description: "Reporte eliminado" } },
     },
   },
+
+  // --- ZONA OPERATIVA ---
   "/api/reportes/{id}/estado": {
     patch: {
       tags: ["Reportes (ms-reportes)"],
-      summary: "Cambiar Estado (Operativo)",
+      summary: "Cambiar estado operativo y registrar historial",
       description:
-        "Acción reservada para personal autorizado. Registra automáticamente un historial de auditoría.",
+        "Solo Brigadistas o Admins. Genera automáticamente una entrada en la tabla de auditoría.",
       security: [{ bearerAuth: [] }],
       parameters: [
         {
@@ -151,17 +168,12 @@ export const reportesPaths = {
           "application/json": {
             schema: {
               type: "object",
-              required: ["nuevoEstado"],
               properties: {
                 nuevoEstado: {
                   type: "string",
                   enum: ["PENDIENTE", "EN_PROCESO", "RESUELTO", "FALSA_ALARMA"],
-                  example: "EN_PROCESO",
                 },
-                comentarios: {
-                  type: "string",
-                  example: "Se despacha primera unidad de bomberos.",
-                },
+                comentarios: { type: "string" },
               },
             },
           },
@@ -169,39 +181,46 @@ export const reportesPaths = {
       },
       responses: {
         "200": { description: "Estado actualizado con trazabilidad completa" },
-        "403": {
-          description: "Un ciudadano no tiene permisos para esta acción",
-        },
       },
+    },
+  },
+
+  "/api/reportes/{id}/historial": {
+    get: {
+      tags: ["Reportes (ms-reportes)"],
+      summary: "Ver trazabilidad/historial de cambios",
+      description:
+        "Muestra quién, cuándo y por qué cambió el estado del incidente.",
+      security: [{ bearerAuth: [] }],
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        },
+      ],
+      responses: { "200": { description: "Historial de auditoría obtenido" } },
     },
   },
 };
 
 export const reportesSchemas = {
+  Categoria: {
+    type: "object",
+    properties: {
+      id: { type: "string", format: "uuid" },
+      nombre: { type: "string" },
+      nivel_prioridad: { type: "integer" },
+    },
+  },
   Reporte: {
     type: "object",
     properties: {
       id: { type: "string", format: "uuid" },
-      categoria_id: { type: "string", format: "uuid" },
       titulo: { type: "string" },
-      descripcion: { type: "string" },
-      latitud: { type: "number" },
-      longitud: { type: "number" },
-      estado: { type: "string", example: "PENDIENTE" },
-      id_ciudadano: { type: "string" },
-      created_at: { type: "string", format: "date-time" },
-      ubicacion: {
-        type: "object",
-        description: "Objeto GeoJSON generado por PostGIS",
-        properties: {
-          type: { type: "string", example: "Point" },
-          coordinates: {
-            type: "array",
-            items: { type: "number" },
-            example: [-71.612, -33.045],
-          },
-        },
-      },
+      estado: { type: "string" },
+      ubicacion: { type: "object", description: "GeoJSON de PostGIS" },
     },
   },
 };

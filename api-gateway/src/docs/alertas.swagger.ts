@@ -1,10 +1,15 @@
+// api-gateway/src/docs/alertas.swagger.ts
+
 export const alertasPaths = {
+  // ============================================================================
+  // 🟢 🔵 ACCESO GENERAL (Cualquier usuario autenticado)
+  // ============================================================================
   "/api/alertas": {
     get: {
       tags: ["Alertas (ms-alertas)"],
-      summary: "Panel General de Alertas (Solo Brigadistas/Admin)",
+      summary: "Panel General de Alertas (Operativo)",
       description:
-        "Obtiene el listado maestro de todas las alertas registradas en el sistema que no han sido borradas lógicamente.",
+        "Obtiene el listado maestro de todas las alertas registradas. Requiere rol de Brigadista o Admin.",
       security: [{ bearerAuth: [] }],
       responses: {
         "200": {
@@ -14,8 +19,7 @@ export const alertasPaths = {
               schema: {
                 type: "object",
                 properties: {
-                  ok: { type: "boolean", example: true },
-                  resultados: { type: "integer", example: 10 },
+                  ok: { type: "boolean" },
                   data: {
                     type: "array",
                     items: { $ref: "#/components/schemas/Alerta" },
@@ -25,17 +29,14 @@ export const alertasPaths = {
             },
           },
         },
-        "401": { description: "No autorizado - Token faltante o inválido" },
-        "403": {
-          description: "Prohibido - No tienes permisos de Brigadista o Admin",
-        },
+        "403": { description: "Prohibido - No tienes permisos suficientes." },
       },
     },
     post: {
       tags: ["Alertas (ms-alertas)"],
-      summary: "Emitir Alerta (Ciudadano)",
+      summary: "Emitir nueva alerta",
       description:
-        "Permite a un usuario autenticado reportar un incidente proporcionando coordenadas exactas y descripción.",
+        "Permite a un usuario autenticado reportar un incidente con coordenadas exactas.",
       security: [{ bearerAuth: [] }],
       requestBody: {
         required: true,
@@ -43,75 +44,56 @@ export const alertasPaths = {
           "application/json": {
             schema: {
               type: "object",
-              required: ["tipo", "descripcion", "ubicacion"],
+              required: ["tipo", "gravedad", "descripcion", "ubicacion"],
               properties: {
+                foco_id: { type: "string", format: "uuid", nullable: true },
                 tipo: {
                   type: "string",
-                  enum: [
-                    "INCENDIO",
-                    "MICROBASURAL",
-                    "VEGETACION_SECA",
-                    "ALUMBRADO_DEFECTUOSO",
-                    "OTRO",
-                  ],
-                  example: "INCENDIO",
+                  enum: ["INCENDIO", "HUMO", "SOSPECHA"],
                 },
-                descripcion: {
+                gravedad: {
                   type: "string",
-                  example: "Se observa humo negro saliendo de la quebrada.",
+                  enum: ["BAJA", "MEDIA", "ALTA", "CRITICA"],
                 },
+                descripcion: { type: "string" },
                 ubicacion: {
                   type: "object",
-                  required: ["type", "coordinates"],
                   properties: {
                     type: { type: "string", example: "Point" },
                     coordinates: {
                       type: "array",
                       items: { type: "number" },
-                      example: [-71.612, -33.045],
-                      description: "[longitud, latitud]",
+                      example: [-70.65, -33.43],
                     },
                   },
                 },
-                gravedad: {
-                  type: "string",
-                  enum: ["BAJA", "MEDIA", "ALTA", "CRITICA"],
-                  example: "MEDIA",
-                },
-                imagenes: {
-                  type: "array",
-                  items: { type: "string" },
-                  example: ["url_imagen_1.jpg"],
-                },
+                imagenes: { type: "array", items: { type: "string" } },
               },
             },
           },
         },
       },
-      responses: {
-        "201": { description: "Alerta registrada con éxito" },
-        "400": { description: "Error en los datos (ej: faltan coordenadas)" },
-      },
+      responses: { "201": { description: "Alerta registrada con éxito" } },
     },
   },
+
   "/api/alertas/mis-alertas": {
     get: {
       tags: ["Alertas (ms-alertas)"],
-      summary: "Mi Historial de Alertas",
+      summary: "Historial de mis alertas (Ciudadano)",
       description:
-        "Recupera todas las alertas emitidas por el usuario logueado actualmente.",
+        "Retorna únicamente las alertas emitidas por el usuario autenticado (extraído del token).",
       security: [{ bearerAuth: [] }],
-      responses: {
-        "200": { description: "Historial recuperado" },
-      },
+      responses: { "200": { description: "Historial personal obtenido" } },
     },
   },
+
   "/api/alertas/cercanas": {
     get: {
       tags: ["Alertas (ms-alertas)"],
-      summary: "Radar PostGIS (Alertas Cercanas)",
+      summary: "Radar espacial de alertas",
       description:
-        "Busca alertas en un radio kilométrico utilizando funciones espaciales de PostGIS.",
+        "Obtiene las alertas cercanas a una coordenada utilizando el motor de PostGIS.",
       security: [{ bearerAuth: [] }],
       parameters: [
         {
@@ -119,33 +101,34 @@ export const alertasPaths = {
           in: "query",
           required: true,
           schema: { type: "number" },
-          example: -71.612,
+          description: "Longitud (X)",
         },
         {
           name: "lat",
           in: "query",
           required: true,
           schema: { type: "number" },
-          example: -33.045,
+          description: "Latitud (Y)",
         },
         {
           name: "radio",
           in: "query",
           required: false,
           schema: { type: "integer", default: 5000 },
-          description: "Radio en metros",
+          description: "Radio de búsqueda en metros (Max 50.000)",
         },
       ],
-      responses: {
-        "200": { description: "Lista de alertas en el radio especificado" },
-        "400": { description: "Coordenadas inválidas o radio superior a 50km" },
-      },
+      responses: { "200": { description: "Alertas cercanas obtenidas" } },
     },
   },
+
+  // ============================================================================
+  // 🟠 🔴 ACCESO ESPECÍFICO Y OPERATIVO
+  // ============================================================================
   "/api/alertas/{id}": {
     get: {
       tags: ["Alertas (ms-alertas)"],
-      summary: "Detalle de Alerta",
+      summary: "Ver detalle de una alerta",
       security: [{ bearerAuth: [] }],
       parameters: [
         {
@@ -156,13 +139,15 @@ export const alertasPaths = {
         },
       ],
       responses: {
-        "200": { description: "Detalle de la alerta obtenido" },
+        "200": { description: "Detalle obtenido" },
         "404": { description: "Alerta no encontrada" },
       },
     },
     delete: {
       tags: ["Alertas (ms-alertas)"],
-      summary: "Borrado Lógico (Solo Admin)",
+      summary: "Eliminar Alerta (ADMIN)",
+      description:
+        "Realiza un borrado lógico (Soft Delete). Solo para Administradores.",
       security: [{ bearerAuth: [] }],
       parameters: [
         {
@@ -172,18 +157,16 @@ export const alertasPaths = {
           schema: { type: "string", format: "uuid" },
         },
       ],
-      responses: {
-        "200": { description: "Alerta eliminada del mapa" },
-        "404": { description: "La alerta no existe o ya fue borrada" },
-      },
+      responses: { "200": { description: "Alerta eliminada del mapa" } },
     },
   },
+
   "/api/alertas/{id}/verificar": {
     post: {
       tags: ["Alertas (ms-alertas)"],
-      summary: "Confirmación en Terreno (Táctico)",
+      summary: "Confirmación en terreno (Táctico)",
       description:
-        "Endpoint utilizado por brigadistas para confirmar si un reporte es fuego real o falsa alarma.",
+        "Endpoint utilizado por brigadistas para confirmar si la alerta ciudadana es un incendio real o una falsa alarma.",
       security: [{ bearerAuth: [] }],
       parameters: [
         {
@@ -200,24 +183,21 @@ export const alertasPaths = {
             schema: {
               type: "object",
               required: ["esFuegoConfirmado"],
-              properties: {
-                esFuegoConfirmado: { type: "boolean", example: true },
-              },
+              properties: { esFuegoConfirmado: { type: "boolean" } },
             },
           },
         },
       },
       responses: {
-        "200": { description: "Verificación procesada (Estado actualizado)" },
+        "200": { description: "Verificación procesada correctamente" },
       },
     },
   },
+
   "/api/alertas/{id}/estado": {
     patch: {
       tags: ["Alertas (ms-alertas)"],
-      summary: "Gestión Operativa de Estado",
-      description:
-        "Actualiza el flujo de trabajo de la alerta (ej: de REPORTADA a EN_REVISION).",
+      summary: "Actualizar estado operativo",
       security: [{ bearerAuth: [] }],
       parameters: [
         {
@@ -244,16 +224,13 @@ export const alertasPaths = {
                     "RESUELTA",
                     "DESCARTADA",
                   ],
-                  example: "EN_REVISION",
                 },
               },
             },
           },
         },
       },
-      responses: {
-        "200": { description: "Estado actualizado exitosamente" },
-      },
+      responses: { "200": { description: "Estado actualizado exitosamente" } },
     },
   },
 };
@@ -265,15 +242,19 @@ export const alertasSchemas = {
       id: { type: "string", format: "uuid" },
       usuario_id: { type: "string" },
       foco_id: { type: "string", format: "uuid", nullable: true },
-      tipo: { type: "string", example: "INCENDIO" },
-      gravedad: { type: "string", example: "ALTA" },
-      estado: { type: "string", example: "REPORTADA" },
+      tipo: { type: "string" },
+      gravedad: { type: "string" },
+      estado: { type: "string" },
       descripcion: { type: "string" },
       ubicacion: {
         type: "object",
         properties: {
-          type: { type: "string" },
-          coordinates: { type: "array", items: { type: "number" } },
+          type: { type: "string", example: "Point" },
+          coordinates: {
+            type: "array",
+            items: { type: "number" },
+            example: [-70.65, -33.43],
+          },
         },
       },
       fecha_creacion: { type: "string", format: "date-time" },

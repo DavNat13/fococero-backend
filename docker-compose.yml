@@ -1,5 +1,8 @@
+# Docker Compose FocoCero - Arquitectura Final con API Gateway
 services:
-  # --- INFRAESTRUCTURA DE BASE DE DATOS (PostGIS) ---
+  # ==========================================
+  # 🗄️ BASE DE DATOS Y GESTIÓN
+  # ==========================================
   db-fococero:
     image: postgis/postgis:15-3.3
     container_name: fococero-db
@@ -8,145 +11,112 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5433:5432"
+      - "5433:5432" # Expuesto solo para desarrollo/debug local
     volumes:
       - fococero_pgdata:/var/lib/postgresql/data
       - ./ms-auth/init.sql:/docker-entrypoint-initdb.d/01-init-auth.sql
       - ./ms-geo/database/init.sql:/docker-entrypoint-initdb.d/02-init-geo.sql
       - ./ms-alertas/database/init.sql:/docker-entrypoint-initdb.d/03-init-alertas.sql
       - ./ms-reportes/database/init.sql:/docker-entrypoint-initdb.d/04-init-reportes.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     restart: always
     networks:
       - fococero-network
 
-  # --- EL DIRECTOR: API GATEWAY ---
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: fococero-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "5050:80"
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+
+  # ==========================================
+  # 🚦 API GATEWAY (Punto de Entrada Único)
+  # ==========================================
   api-gateway:
     build: ./api-gateway
     container_name: fococero-gateway
     ports:
-      - "3000:3000"
-    environment:
-      - PORT=3000
-      - NODE_ENV=${NODE_ENV}
-      - AUTH_SERVICE_URL=http://ms-auth:3001
-      - GEO_SERVICE_URL=http://ms-geo:3002
-      - ALERTAS_SERVICE_URL=http://ms-alertas:3003
-      - REPORTES_SERVICE_URL=http://ms-reportes:3004
-      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
-      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
-      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
-      - JWT_SECRET=${JWT_SECRET}
+      - "3000:3000" # 🌍 ÚNICO PUERTO EXPUESTO AL FRONTEND
+    env_file: ./api-gateway/.env
     depends_on:
       - ms-auth
+      - ms-geo
+      - ms-alertas
+      - ms-reportes
     networks:
       - fococero-network
 
-  # --- MICROSERVICIOS OPERATIVOS ---
+  # ==========================================
+  # 🧱 MICROSERVICIOS (Red Interna Privada)
+  # ==========================================
   ms-auth:
     build: ./ms-auth
     container_name: ms-auth
-    ports:
-      - "3001:3001"
-    environment:
-      - NODE_ENV=${NODE_ENV}
-      - PORT=3001
-      - DB_HOST=db-fococero
-      - DB_PORT=5432
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
-      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
-      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
-      - JWT_SECRET=${JWT_SECRET}
+    expose:
+      - "3001" # Solo accesible dentro de fococero-network
+    env_file: ./ms-auth/.env
     depends_on:
-      - db-fococero
+      db-fococero:
+        condition: service_healthy
     networks:
       - fococero-network
 
   ms-geo:
     build: ./ms-geo
     container_name: ms-geo
-    ports:
-      - "3002:3002"
-    environment:
-      - PORT=3002
-      - NODE_ENV=${NODE_ENV}
-      - DB_HOST=db-fococero
-      - DB_PORT=5432
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
-      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
-      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
-      - JWT_SECRET=${JWT_SECRET}
+    expose:
+      - "3002" # Solo accesible dentro de fococero-network
+    env_file: ./ms-geo/.env
     depends_on:
-      - db-fococero
+      db-fococero:
+        condition: service_healthy
     networks:
       - fococero-network
 
   ms-alertas:
     build: ./ms-alertas
     container_name: ms-alertas
-    ports:
-      - "3003:3003"
-    environment:
-      - PORT=3003
-      - NODE_ENV=${NODE_ENV}
-      - DB_HOST=db-fococero
-      - DB_PORT=5432
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
-      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
-      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
-      - JWT_SECRET=${JWT_SECRET}
+    expose:
+      - "3003" # Solo accesible dentro de fococero-network
+    env_file: ./ms-alertas/.env
     depends_on:
-      - db-fococero
+      db-fococero:
+        condition: service_healthy
     networks:
       - fococero-network
 
   ms-reportes:
     build: ./ms-reportes
     container_name: ms-reportes
-    ports:
-      - "3004:3004"
-    environment:
-      - PORT=3004
-      - NODE_ENV=${NODE_ENV}
-      - DB_HOST=db-fococero
-      - DB_PORT=5432
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
-      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
-      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
-      - JWT_SECRET=${JWT_SECRET} # ✅ Inyección explícita corregida
+    expose:
+      - "3004" # Solo accesible dentro de fococero-network
+    env_file: ./ms-reportes/.env
     depends_on:
-      - db-fococero
+      db-fococero:
+        condition: service_healthy
     networks:
       - fococero-network
 
-  # --- HERRAMIENTAS DE GESTIÓN ---
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: fococero-pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@fococero.cl}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-foco0-1234}
-    ports:
-      - "5050:80"
-    depends_on:
-      - db-fococero
-    networks:
-      - fococero-network
+# ==========================================
+# 💾 VOLUMEN Y RED
+# ==========================================
+volumes:
+  fococero_pgdata:
+    name: fococero_pgdata
 
 networks:
   fococero-network:
+    name: fococero-network
     driver: bridge
-
-volumes:
-  fococero_pgdata:

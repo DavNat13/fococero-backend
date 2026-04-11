@@ -1,92 +1,86 @@
 // src/validators/geo.validator.ts
+import { z } from 'zod';
+import { EstadoFoco } from '../models/geo.model';
 
-import { CrearFocoDTO, EstadoFoco } from '../models/geo.model';
+const CHILE_BOUNDS = {
+    lat: { min: -56.0, max: -17.0 },
+    lng: { min: -76.0, max: -66.0 },
+};
 
 /**
- * GeoValidator: El Escudo Perimetral Lógico.
- * Se asegura de que la basura informática nunca llegue a la base de datos PostGIS.
+ * GeoValidator: Escudo de validación basado en Zod.
  */
-export class GeoValidator {
-    
-    // ============================================================================
-    // 🟢 VALIDACIÓN DE ENTRADA CIUDADANA (CREACIÓN)
-    // ============================================================================
+export const crearFocoSchema = z.object({
+    body: z
+        .object({
+            tipo_incidente: z.string().min(3, 'El tipo de incidente es demasiado corto.'),
+            latitud: z
+                .number()
+                .min(CHILE_BOUNDS.lat.min, 'Latitud fuera de territorio chileno.')
+                .max(CHILE_BOUNDS.lat.max, 'Latitud fuera de territorio chileno.'),
+            longitud: z
+                .number()
+                .min(CHILE_BOUNDS.lng.min, 'Longitud fuera de territorio chileno.')
+                .max(CHILE_BOUNDS.lng.max, 'Longitud fuera de territorio chileno.'),
+            detalles: z.string().max(500).optional(),
+            viento_velocidad_kmh: z.number().nonnegative().optional().default(0),
+            viento_direccion: z.string().optional(),
+            amenaza_viviendas: z.boolean().optional().default(false),
+            radio_afectacion_metros: z.number().positive().optional().default(50),
+            reporte_id: z.string().optional(),
+        })
+        .strict(),
+});
 
-    /**
-     * Valida que el reporte inicial tenga coordenadas válidas dentro del territorio nacional.
-     */
-    static validarCreacion(data: any): { isValid: boolean; error?: string } {
-        if (typeof data.latitud !== 'number' || typeof data.longitud !== 'number') {
-            return { isValid: false, error: 'Latitud y longitud son obligatorias y deben ser numéricas.' };
-        }
+/**
+ * Esquema para actualización integral (PUT)
+ */
+export const actualizarFocoSchema = z.object({
+    params: z.object({
+        id: z.string().uuid('ID inválido.'),
+    }),
+    body: z
+        .object({
+            tipo_incidente: z.string().min(3).optional(),
+            detalles: z.string().max(500).optional(),
+            viento_velocidad_kmh: z.number().nonnegative().optional(),
+            amenaza_viviendas: z.boolean().optional(),
+            viento_direccion: z.string().optional(),
+        })
+        .strict(),
+});
 
-        const lat = data.latitud;
-        const lng = data.longitud;
+export const cambiarEstadoSchema = z.object({
+    params: z.object({
+        id: z.string().uuid('ID de foco inválido.'),
+    }),
+    body: z
+        .object({
+            estado: z.nativeEnum(EstadoFoco, {
+                message: 'Estado operativo no reconocido.',
+            }),
+        })
+        .strict(),
+});
 
-        // 🗺️ Geofencing: Límites aproximados de Chile Continental
-        // Latitud: Desde el norte de Arica (-17.0) hasta el sur de Punta Arenas (-56.0)
-        // Longitud: Cordillera (-66.0) al Océano (-76.0)
-        if (lat > -17 || lat < -56 || lng > -66 || lng < -76) {
-            return { 
-                isValid: false, 
-                error: 'Coordenadas rechazadas: El punto de origen reportado está fuera de la jurisdicción territorial de Chile.' 
-            };
-        }
+export const actualizarPerimetroSchema = z.object({
+    params: z.object({
+        id: z.string().uuid(),
+    }),
+    body: z
+        .object({
+            area_quemada_wkt: z.string().refine((wkt) => {
+                const upper = wkt.toUpperCase().trim();
+                return upper.startsWith('POLYGON') || upper.startsWith('MULTIPOLYGON');
+            }, 'Se requiere formato WKT (POLYGON/MULTIPOLYGON).'),
+        })
+        .strict(),
+});
 
-        // Validaciones secundarias de tipos
-        if (data.viento_velocidad_kmh && typeof data.viento_velocidad_kmh !== 'number') {
-            return { isValid: false, error: 'La velocidad del viento debe ser un valor numérico.' };
-        }
-
-        return { isValid: true };
-    }
-
-    // ============================================================================
-    // 🟠 VALIDACIÓN OPERATIVA (ESTADOS)
-    // ============================================================================
-
-    /**
-     * Valida que un cambio de estado pertenezca al protocolo oficial.
-     */
-    static validarEstado(estado: any): { isValid: boolean; error?: string } {
-        if (!estado || typeof estado !== 'string') {
-            return { isValid: false, error: 'El estado es requerido.' };
-        }
-
-        const esValido = Object.values(EstadoFoco).includes(estado as EstadoFoco);
-        
-        if (!esValido) {
-            return { 
-                isValid: false, 
-                error: `Estado operacional no reconocido. Valores permitidos: ${Object.values(EstadoFoco).join(', ')}` 
-            };
-        }
-
-        return { isValid: true };
-    }
-
-    // ============================================================================
-    // 🔵 VALIDACIÓN ESPACIAL PRO (POLÍGONOS)
-    // ============================================================================
-
-    /**
-     * Valida que la sintaxis WKT (Well-Known Text) sea segura antes de enviarla a PostGIS.
-     */
-    static validarPerimetroWKT(wkt: any): { isValid: boolean; error?: string } {
-        if (!wkt || typeof wkt !== 'string') {
-            return { isValid: false, error: 'El perímetro (área quemada) debe ser un texto en formato WKT.' };
-        }
-
-        const wktUpper = wkt.toUpperCase().trim();
-        
-        // PostGIS exige que el polígono esté cerrado y sea un tipo geométrico válido
-        if (!wktUpper.startsWith('POLYGON') && !wktUpper.startsWith('MULTIPOLYGON')) {
-            return { 
-                isValid: false, 
-                error: 'Formato geométrico inválido. FocoCero solo admite polígonos (POLYGON o MULTIPOLYGON) para mapear el área quemada.' 
-            };
-        }
-
-        return { isValid: true };
-    }
-}
+export const queryCercanosSchema = z.object({
+    query: z.object({
+        lat: z.string().transform((val) => parseFloat(val)),
+        lng: z.string().transform((val) => parseFloat(val)),
+        radio: z.string().transform((val) => parseInt(val, 10)),
+    }),
+});

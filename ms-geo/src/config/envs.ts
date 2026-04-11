@@ -1,39 +1,36 @@
-// src/config/envs.ts
+// ms-geo/src/config/envs.ts
+import 'dotenv/config';
+import * as env from 'env-var';
 
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const requiredEnvs = [
-    'PORT',
-    'DB_USER',
-    'DB_PASSWORD',
-    'DB_HOST',
-    'DB_NAME',
-    'DB_PORT',
-    'FIREBASE_PROJECT_ID',
-    'FIREBASE_CLIENT_EMAIL',
-    'FIREBASE_PRIVATE_KEY'
-];
-
-// Escudo 1: Validar ANTES de hacer cualquier cosa
-requiredEnvs.forEach((envName) => {
-    if (!process.env[envName]) {
-        console.error(`🚨 FATAL ERROR: Falta la variable de entorno obligatoria: ${envName}`);
-        process.exit(1); // Apagamos el proceso inmediatamente. No tiene sentido arrancar a ciegas.
-    }
-});
+const dbHostRaw = env.get('DB_HOST').required().asString();
+const isDocker = dbHostRaw === 'db-fococero';
 
 export const envs = {
-    PORT: parseInt(process.env.PORT || '3002', 10),
-    DB_USER: process.env.DB_USER!,
-    DB_PASSWORD: process.env.DB_PASSWORD!,
-    DB_HOST: process.env.DB_HOST!,
-    DB_NAME: process.env.DB_NAME!,
-    DB_PORT: parseInt(process.env.DB_PORT || '5432', 10),
-    
-    // Escudo 2: Reparador automático de saltos de línea para la llave de Firebase
-    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID!,
-    FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL!,
-    FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
+    PORT: env.get('PORT').default(3002).asPortNumber(),
+    NODE_ENV: env.get('NODE_ENV').default('development').asString(),
+
+    // Base de Datos - Lógica Híbrida Inteligente
+    DB_USER: env.get('DB_USER').required().asString(),
+    DB_PASSWORD: env.get('DB_PASSWORD').required().asString(),
+    DB_NAME: env.get('DB_NAME').required().asString(),
+
+    /**
+     * Si detecta la red de Docker, usa el host interno y puerto 5432.
+     * De lo contrario, asume desarrollo local y usa el puerto 5433 expuesto.
+     */
+    DB_HOST: isDocker ? dbHostRaw : env.get('DB_HOST_LOCAL').default('localhost').asString(),
+    DB_PORT: isDocker
+        ? env.get('DB_PORT').default(5432).asPortNumber()
+        : env.get('DB_PORT_LOCAL').default(5433).asPortNumber(),
+
+    // Firebase
+    FIREBASE_PROJECT_ID: env.get('FIREBASE_PROJECT_ID').required().asString(),
+    FIREBASE_CLIENT_EMAIL: env.get('FIREBASE_CLIENT_EMAIL').required().asString(),
+    FIREBASE_PRIVATE_KEY: env
+        .get('FIREBASE_PRIVATE_KEY')
+        .required()
+        .asString()
+        .replace(/\\n/g, '\n')
+        .replace(/"/g, '')
+        .trim(),
 };
