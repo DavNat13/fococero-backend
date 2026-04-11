@@ -9,7 +9,7 @@ export enum EstadoReporte {
 
 export interface IGeoPoint {
     type: 'Point';
-    coordinates: [number, number];   
+    coordinates: [number, number];
 }
 
 export interface IReporteMetadata {
@@ -17,11 +17,11 @@ export interface IReporteMetadata {
     temperatura?: number;
     es_anonimo?: boolean;
     fotos_urls?: string[];
-    [key: string]: unknown;  
+    [key: string]: unknown;
 }
 
 export interface ICategoriaIncidente {
-    id: string;  
+    id: string;
     nombre: string;
     descripcion: string | null;
     nivel_prioridad: number;
@@ -31,23 +31,23 @@ export interface ICategoriaIncidente {
 }
 
 export interface IReporte {
-    id: string;  
-    categoria_id: string;  
+    id: string;
+    categoria_id: string;
     titulo: string;
     descripcion: string;
     latitud: number;
     longitud: number;
-    ubicacion?: IGeoPoint;  
+    ubicacion?: IGeoPoint;
     estado: EstadoReporte;
-    id_ciudadano: string;  
+    id_ciudadano: string;
     metadata: IReporteMetadata;
     created_at: Date;
     updated_at: Date;
 }
 
 export interface IHistorialEstado {
-    id: string;  
-    reporte_id: string;  
+    id: string;
+    reporte_id: string;
     estado_anterior: EstadoReporte | null;
     estado_nuevo: EstadoReporte;
     id_usuario_modificador: string;
@@ -64,9 +64,9 @@ export interface ICreateReporteDTO extends Omit<
     metadata?: IReporteMetadata;
 }
 
-export interface ICreateHistorialDTO extends Omit<IHistorialEstado, 'id' | 'created_at'> {}
+export type ICreateHistorialDTO = Omit<IHistorialEstado, 'id' | 'created_at'>;
 
-//  DTO para actualización parcial por el ciudadano
+// DTO para actualización parcial por el ciudadano
 export interface IUpdateReporteDTO {
     titulo?: string;
     descripcion?: string;

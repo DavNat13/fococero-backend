@@ -59,7 +59,7 @@ export class ReporteRepository {
         offset: number,
         filtros: { estado?: string; categoria_id?: string },
     ): Promise<{ total: number; data: IReporte[] }> {
-        const values: any[] = [limit, offset];
+        const values: (string | number)[] = [limit, offset];
         let whereClause = '';
 
         if (filtros.estado) {
