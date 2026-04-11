@@ -28,7 +28,7 @@ jobs:
       - name: 📥 Checkout del código
         uses: actions/checkout@v4
 
-      # Paso 2: Instalar Node.js (usando la versión 22 como en tu Dockerfile)
+      # Paso 2: Instalar Node.js (usando la versión 22)
       - name: ⚙️ Setup Node.js 22
         uses: actions/setup-node@v4
         with:
@@ -36,16 +36,16 @@ jobs:
           cache: "npm"
           cache-dependency-path: "./ms-multimedia/package-lock.json"
 
-      # Paso 3: Instalar dependencias exactas (usamos 'ci' en lugar de 'install' para pipelines)
+      # Paso 3: Instalar dependencias exactas (Clean Install)
       - name: 📦 Instalar Dependencias
         run: npm ci
 
-      # Paso 4: Ejecutar la suite de pruebas (nuestros 6 tests de Jest)
-      - name: 🧪 Ejecutar Tests (Jest & Supertest)
+      # Paso 4: Ejecutar la suite de pruebas (Jest & Supertest)
+      - name: 🧪 Ejecutar Tests
         run: npm test
         env:
           NODE_ENV: test
-          # Proveemos variables falsas solo para que el validador de envs.ts no falle en el CI
+          # 🛡️ MOCKS PARA LA ARQUITECTURA FAIL-FAST (envs.ts) 🛡️
           PORT: 3005
           DB_USER: test
           DB_PASSWORD: test
@@ -55,6 +55,8 @@ jobs:
           FIREBASE_PROJECT_ID: fococero-test
           FIREBASE_CLIENT_EMAIL: test@fococero-test.iam.gserviceaccount.com
           FIREBASE_PRIVATE_KEY: "test-key"
+          GATEWAY_URL: "http://localhost:3000"
+          FIREBASE_STORAGE_BUCKET: "fococero-test.appspot.com"
 
       # Paso 5: Compilar el código TypeScript a JavaScript
       - name: 🏗️ Compilar TypeScript (Build)
