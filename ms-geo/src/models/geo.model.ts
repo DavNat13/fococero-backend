@@ -9,66 +9,66 @@ export enum EstadoFoco {
     EN_COMBATE = 'En Combate',
     CONTROLADO = 'Controlado',
     EXTINGUIDO = 'Extinguido',
-    FALSA_ALARMA = 'Falsa Alarma'
+    FALSA_ALARMA = 'Falsa Alarma',
 }
 
 /**
- * Niveles de severidad estandarizados por el motor lógico (GeoHelper).
+ * Niveles de severidad estandarizados por el motor lógico.
  */
 export enum SeveridadFoco {
     BAJA = 'Baja',
     MODERADA = 'Moderada',
     ALTA = 'Alta',
-    CRITICA = 'Crítica'
+    CRITICA = 'Crítica',
 }
 
 // ============================================================================
-// 📥 DTO (Data Transfer Object) - Lo que entra al sistema (Ciudadano)
+// 📥 DTOs (Data Transfer Objects)
 // ============================================================================
 
-/**
- * Payload esperado cuando se reporta un nuevo foco.
- * Solo contiene datos crudos antes de ser procesados por PostGIS.
- */
-export interface CrearFocoDTO {
+export interface ICrearFocoDTO {
+    reporte_id?: string;
+    tipo_incidente: string;
     latitud: number;
     longitud: number;
     detalles?: string;
-    tipo_incidente?: string;
     viento_velocidad_kmh?: number;
     viento_direccion?: string;
     amenaza_viviendas?: boolean;
+    radio_afectacion_metros?: number;
+}
+
+export interface IUpdateFocoDTO {
+    tipo_incidente?: string;
+    detalles?: string;
+    viento_velocidad_kmh?: number;
+    amenaza_viviendas?: boolean;
+    estado?: EstadoFoco;
 }
 
 // ============================================================================
-// 🗄️ ENTIDAD - Lo que vive en la Base de Datos (PostGIS)
+// 🗄️ ENTIDAD - Representación de la Base de Datos
 // ============================================================================
 
-/**
- * Representación estricta de la tabla de PostgreSQL en TypeScript.
- */
-export interface UbicacionFoco {
-    id: string; // Obligatorio (UUID)
-    reporte_id?: string;
+export interface IUbicacionFoco {
+    id: string;
+    reporte_id: string;
     tipo_incidente: string;
     severidad: SeveridadFoco;
     estado: EstadoFoco;
     detalles?: string;
-    
-    // Variables Climáticas y de Riesgo
     radio_afectacion_metros: number;
-    direccion_referencial?: string;
     es_verificado: boolean;
     viento_velocidad_kmh: number;
     viento_direccion?: string;
     amenaza_viviendas: boolean;
-    
-    // 🗺️ Variables Espaciales (Magia PostGIS)
-    // Cuando consultemos la BD, pediremos que formatee el POINT a GeoJSON o WKT
-    geom_geojson?: string; 
-    area_quemada_wkt?: string; 
-    
-    // Trazabilidad
-    creado_en: Date;
-    actualizado_en: Date;
+
+    // 🗺️ Variables Espaciales formatatadas desde PostGIS
+    latitud: number;
+    longitud: number;
+    perimetro_wkt?: string; // Formato WKT para polígonos
+
+    created_at: Date;
+    updated_at: Date;
+    deleted_at?: Date;
 }

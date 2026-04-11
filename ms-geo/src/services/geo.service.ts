@@ -2,109 +2,98 @@
 
 import { GeoRepository } from '../repositories/geo.repository';
 import { GeoHelper } from '../helpers/geo.helper';
+import { ICrearFocoDTO, IUpdateFocoDTO, IUbicacionFoco, EstadoFoco } from '../models/geo.model';
+import { AppError } from '../helpers/appError';
 
-/**
- * GeoService: El cerebro del microservicio.
- * Contiene toda la lógica de negocio, validaciones cruzadas y orquestación.
- */
 export class GeoService {
+    // --- CREACIÓN Y LECTURA ---
 
-    // ============================================================================
-    // 🟢 CREACIÓN
-    // ============================================================================
-
-    static async crearFoco(data: any): Promise<any> {
-        // 1. Regla de Negocio: Calcular severidad basada en clima y amenaza
-        const severidadCalculada = GeoHelper.evaluarSeveridad(
-            data.viento_velocidad_kmh, 
-            data.amenaza_viviendas
+    static async crearFoco(data: ICrearFocoDTO): Promise<IUbicacionFoco> {
+        // Regla: Calcular severidad inicial basada en clima y riesgo
+        const severidad = GeoHelper.evaluarSeveridad(
+            data.viento_velocidad_kmh || 0,
+            data.amenaza_viviendas || false,
         );
 
-        // 2. Armar el paquete de datos
         const payload = {
             ...data,
-            reporte_id: data.reporte_id || `REP-${Date.now().toString().slice(-6)}`,
-            severidad: severidadCalculada
+            reporte_id: data.reporte_id || `REP-GEO-${Date.now().toString().slice(-6)}`,
+            severidad,
         };
 
-        // 3. Delegar la persistencia al motor PostGIS
         return await GeoRepository.create(payload);
     }
 
-    // ============================================================================
-    // 🔵 LECTURA
-    // ============================================================================
-
-    static async obtenerTodos(): Promise<any[]> {
+    static async obtenerTodos(): Promise<IUbicacionFoco[]> {
         return await GeoRepository.findAllActive();
     }
 
-    static async obtenerPorId(id: string): Promise<any> {
+    static async obtenerPorId(id: string): Promise<IUbicacionFoco> {
         const foco = await GeoRepository.findById(id);
-        if (!foco) {
-            const error = new Error('Reporte geoespacial no encontrado o fue eliminado.');
-            (error as any).statusCode = 404;
-            throw error;
-        }
+        if (!foco) throw new AppError('Incendio geoespacial no encontrado.', 404);
         return foco;
     }
 
-    static async obtenerCercanos(lat: number, lng: number, radioMetros: number): Promise<any[]> {
+    static async obtenerCercanos(
+        lat: number,
+        lng: number,
+        radioMetros: number,
+    ): Promise<IUbicacionFoco[]> {
         return await GeoRepository.findNearby(lat, lng, radioMetros);
     }
 
-    // ============================================================================
-    // 🟠 ACTUALIZACIÓN OPERATIVA
-    // ============================================================================
+    // --- GESTIÓN OPERATIVA ---
 
-    static async cambiarEstado(id: string, nuevoEstado: string): Promise<any> {
-        await this.obtenerPorId(id); // Verificamos que exista primero
-        
+    static async cambiarEstado(id: string, nuevoEstado: EstadoFoco): Promise<IUbicacionFoco> {
+        await this.obtenerPorId(id); // Validamos existencia
+
         const actualizado = await GeoRepository.updateState(id, nuevoEstado);
-        if (!actualizado) {
-            throw new Error('No se pudo actualizar el estado operativo del reporte.');
-        }
+        if (!actualizado) throw new AppError('Error al actualizar el estado operativo.', 500);
+
         return actualizado;
     }
 
-    static async actualizarPerimetro(id: string, wktPoligono: string): Promise<any> {
+    static async actualizarPerimetro(id: string, wktPoligono: string): Promise<IUbicacionFoco> {
         await this.obtenerPorId(id);
-        
+
         const actualizado = await GeoRepository.updatePerimetro(id, wktPoligono);
-        if (!actualizado) {
-            throw new Error('No se pudo trazar el perímetro en el motor espacial.');
-        }
+        if (!actualizado)
+            throw new AppError('No se pudo procesar el trazado espacial del perímetro.', 400);
+
         return actualizado;
     }
 
-    static async actualizarCompleto(id: string, updateData: any): Promise<any> {
+
+    static async actualizarCompleto(
+        id: string,
+        updateData: IUpdateFocoDTO,
+    ): Promise<IUbicacionFoco> {
         const focoActual = await this.obtenerPorId(id);
 
-        // Si cambia el viento o la amenaza a viviendas, recalculamos la severidad automáticamente
+        // Lógica de Recalculación: Si no viene un valor nuevo, usamos el que ya tiene el foco
         const nuevoViento = updateData.viento_velocidad_kmh ?? focoActual.viento_velocidad_kmh;
         const nuevaAmenaza = updateData.amenaza_viviendas ?? focoActual.amenaza_viviendas;
-        
-        updateData.severidad = GeoHelper.evaluarSeveridad(nuevoViento, nuevaAmenaza);
 
-        const actualizado = await GeoRepository.updateAll(id, updateData);
+        const severidad = GeoHelper.evaluarSeveridad(nuevoViento, nuevaAmenaza);
+
+        // Llamada sincronizada al repositorio
+        const actualizado = await GeoRepository.updateAll(id, { ...updateData, severidad });
+
         if (!actualizado) {
-            throw new Error('Error al ejecutar la actualización integral.');
+            throw new AppError(
+                'Error al ejecutar la actualización integral en el motor espacial.',
+                500,
+            );
         }
+
         return actualizado;
     }
 
-    // ============================================================================
-    // 🔴 ELIMINACIÓN
-    // ============================================================================
+    // --- ELIMINACIÓN ---
 
     static async eliminar(id: string): Promise<void> {
         await this.obtenerPorId(id);
-        
         const fueEliminado = await GeoRepository.softDelete(id);
-        if (!fueEliminado) {
-            const error = new Error('No se pudo remover el reporte del mapa táctico.');
-            (error as any).statusCode = 500;
-            throw error;
-        }
+        if (!fueEliminado) throw new AppError('No se pudo remover el reporte del sistema.', 500);
     }
 }

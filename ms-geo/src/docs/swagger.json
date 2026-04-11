@@ -1,182 +1,207 @@
 {
-  "openapi": "3.0.0",
-  "info": {
-    "title": "API FocoCero - Inteligencia Geoespacial",
-    "version": "1.0.0",
-    "description": "Microservicio (ms-geo) responsable de la ingesta de coordenadas, cálculos espaciales y gestión operativa de los focos de incendio."
-  },
-  "servers": [
-    {
-      "url": "http://localhost:3002",
-      "description": "Servidor de Desarrollo (ms-geo)"
-    }
-  ],
-  "components": {
-    "securitySchemes": {
-      "bearerAuth": {
-        "type": "http",
-        "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "Ingresa el token JWT generado por Firebase para autenticar acciones operativas."
-      }
+    "openapi": "3.0.0",
+    "info": {
+        "title": "API FocoCero - Inteligencia Geoespacial",
+        "version": "1.1.0",
+        "description": "Microservicio (ms-geo) responsable de la ingesta de coordenadas, cálculos de radar, gestión de perímetros WKT y trazabilidad operativa de incendios."
     },
-    "schemas": {
-      "ErrorResponse": {
-        "type": "object",
-        "properties": {
-          "ok": { "type": "boolean", "example": false },
-          "error": { "type": "string", "example": "Mensaje descriptivo del error devuelto por el errorHandler" }
+    "servers": [
+        {
+            "url": "http://localhost:3002",
+            "description": "Servidor de Desarrollo (ms-geo)"
         }
-      },
-      "FocoIncendio": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "example": "123e4567-e89b-12d3-a456-426614174000" },
-          "latitud": { "type": "number", "format": "float", "example": -33.4489 },
-          "longitud": { "type": "number", "format": "float", "example": -70.6693 },
-          "estado": { "type": "string", "example": "Reportado" },
-          "detalles": { "type": "string", "example": "Humo visible cerca de la carretera" }
-        }
-      }
-    }
-  },
-  "tags": [
-    {
-      "name": "Ciudadano",
-      "description": "Rutas públicas de telemetría y reportes (No requieren Token)"
-    },
-    {
-      "name": "Operativo",
-      "description": "Gestión táctica de la emergencia y actualización de estados (Requiere Token)"
-    }
-  ],
-  "paths": {
-    "/api/geo": {
-      "post": {
-        "summary": "Reportar un nuevo foco de incendio",
-        "tags": ["Ciudadano"],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["latitud", "longitud"],
-                "properties": {
-                  "latitud": { "type": "number", "example": -35.4264 },
-                  "longitud": { "type": "number", "example": -71.6554 },
-                  "detalles": { "type": "string", "example": "Fuego en pastizales, avance rápido." }
-                }
-              }
+    ],
+    "components": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Token JWT de Firebase para autenticar brigadistas y administradores."
             }
-          }
         },
-        "responses": {
-          "201": { 
-            "description": "Foco reportado exitosamente",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": { "type": "boolean", "example": true },
-                    "msg": { "type": "string", "example": "Incendio reportado y geolocalizado con éxito." },
-                    "data": { "$ref": "#/components/schemas/FocoIncendio" }
-                  }
+        "schemas": {
+            "ErrorResponse": {
+                "type": "object",
+                "properties": {
+                    "ok": { "type": "boolean", "example": false },
+                    "error": { "type": "string" },
+                    "detalles": { "type": "array", "items": { "type": "object" } }
                 }
-              }
+            },
+            "FocoIncendio": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "reporte_id": { "type": "string" },
+                    "tipo_incidente": { "type": "string" },
+                    "severidad": {
+                        "type": "string",
+                        "enum": ["Baja", "Moderada", "Alta", "Crítica"]
+                    },
+                    "estado": {
+                        "type": "string",
+                        "enum": [
+                            "Reportado",
+                            "En Evaluación",
+                            "En Combate",
+                            "Controlado",
+                            "Extinguido",
+                            "Falsa Alarma"
+                        ]
+                    },
+                    "latitud": { "type": "number" },
+                    "longitud": { "type": "number" },
+                    "perimetro_wkt": { "type": "string", "nullable": true },
+                    "viento_velocidad_kmh": { "type": "number" },
+                    "amenaza_viviendas": { "type": "boolean" }
+                }
             }
-          },
-          "400": { "description": "Datos inválidos (Validación fallida)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "500": { "description": "Error interno del servidor", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
         }
-      },
-      "get": {
-        "summary": "Obtener el mapa global de focos",
-        "tags": ["Ciudadano"],
-        "responses": {
-          "200": {
-            "description": "Lista de todos los focos activos/inactivos",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": { "type": "boolean", "example": true },
-                    "data": {
-                      "type": "array",
-                      "items": { "$ref": "#/components/schemas/FocoIncendio" }
+    },
+    "tags": [
+        { "name": "Zona Ciudadana", "description": "Endpoints públicos (No requieren Token)" },
+        {
+            "name": "Zona Operativa",
+            "description": "Gestión táctica de la emergencia (Requiere Token)"
+        }
+    ],
+    "paths": {
+        "/api/geo": {
+            "get": {
+                "summary": "Listar todos los focos activos",
+                "tags": ["Zona Ciudadana"],
+                "responses": { "200": { "description": "Mapa global obtenido" } }
+            },
+            "post": {
+                "summary": "Reportar un nuevo incendio",
+                "tags": ["Zona Ciudadana"],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["latitud", "longitud", "tipo_incidente"],
+                                "properties": {
+                                    "latitud": { "type": "number" },
+                                    "longitud": { "type": "number" },
+                                    "tipo_incidente": { "type": "string" }
+                                }
+                            }
+                        }
                     }
-                  }
-                }
-              }
+                },
+                "responses": { "201": { "description": "Geolocalizado" } }
             }
-          },
-          "500": { "description": "Error al consultar la base de datos", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
-        }
-      }
-    },
-    "/api/geo/{id}": {
-      "get": {
-        "summary": "Obtener detalles de un foco específico",
-        "tags": ["Ciudadano"],
-        "parameters": [
-          { "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" }, "description": "ID único del foco" }
-        ],
-        "responses": {
-          "200": {
-            "description": "Datos del foco solicitado",
-            "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean", "example": true }, "data": { "$ref": "#/components/schemas/FocoIncendio" } } } } }
-          },
-          "404": { "description": "Foco no encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
-        }
-      },
-      "delete": {
-        "summary": "Eliminar un reporte (Soft/Hard Delete)",
-        "tags": ["Operativo"],
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }
-        ],
-        "responses": {
-          "200": { "description": "Reporte removido del sistema operativo" },
-          "401": { "description": "No autorizado (Falta token o es inválido)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "403": { "description": "Permisos insuficientes (Rol incorrecto)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
-        }
-      }
-    },
-    "/api/geo/{id}/estado": {
-      "patch": {
-        "summary": "Actualizar estado operativo del foco",
-        "tags": ["Operativo"],
-        "security": [{ "bearerAuth": [] }],
-        "parameters": [
-          { "in": "path", "name": "id", "required": true, "schema": { "type": "string", "format": "uuid" } }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "estado": { 
-                    "type": "string", 
-                    "example": "En Combate", 
-                    "enum": ["Reportado", "En Evaluación", "En Combate", "Controlado", "Extinguido", "Falsa Alarma"] 
-                  }
-                }
-              }
-            }
-          }
         },
-        "responses": {
-          "200": { "description": "Estado actualizado con éxito" },
-          "400": { "description": "Estado inválido o faltante", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "401": { "description": "No autorizado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
-          "404": { "description": "Foco no encontrado", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        "/api/geo/cercanos": {
+            "get": {
+                "summary": "Radar de cercanía",
+                "tags": ["Zona Ciudadana"],
+                "parameters": [
+                    {
+                        "name": "lat",
+                        "in": "query",
+                        "required": true,
+                        "schema": { "type": "number" }
+                    },
+                    {
+                        "name": "lng",
+                        "in": "query",
+                        "required": true,
+                        "schema": { "type": "number" }
+                    },
+                    {
+                        "name": "radio",
+                        "in": "query",
+                        "required": true,
+                        "schema": { "type": "integer" },
+                        "description": "Radio en metros"
+                    }
+                ],
+                "responses": { "200": { "description": "Focos en el área" } }
+            }
+        },
+        "/api/geo/{id}": {
+            "get": {
+                "summary": "Detalle por ID",
+                "tags": ["Zona Ciudadana"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "responses": { "200": { "description": "Foco encontrado" } }
+            },
+            "put": {
+                "summary": "Actualización integral",
+                "tags": ["Zona Operativa"],
+                "security": [{ "BearerAuth": [] }],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "responses": {
+                    "200": { "description": "Variables actualizadas y severidad recalculada" }
+                }
+            },
+            "delete": {
+                "summary": "Eliminar (Soft Delete)",
+                "tags": ["Zona Operativa"],
+                "security": [{ "BearerAuth": [] }],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "responses": { "200": { "description": "Removido del sistema" } }
+            }
+        },
+        "/api/geo/{id}/estado": {
+            "patch": {
+                "summary": "Cambiar flujo operativo",
+                "tags": ["Zona Operativa"],
+                "security": [{ "BearerAuth": [] }],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": { "estado": { "type": "string" } }
+                            }
+                        }
+                    }
+                },
+                "responses": { "200": { "description": "Estado actualizado" } }
+            }
+        },
+        "/api/geo/{id}/perimetro": {
+            "patch": {
+                "summary": "Actualizar trazado WKT",
+                "tags": ["Zona Operativa"],
+                "security": [{ "BearerAuth": [] }],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": { "area_quemada_wkt": { "type": "string" } }
+                            }
+                        }
+                    }
+                },
+                "responses": { "200": { "description": "Polígono registrado en PostGIS" } }
+            }
         }
-      }
     }
-  }
 }

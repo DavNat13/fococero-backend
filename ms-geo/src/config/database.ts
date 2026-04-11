@@ -1,30 +1,25 @@
-// src/config/database.ts
-
+// ms-geo/src/config/database.ts
 import { Pool } from 'pg';
 import { envs } from './envs';
 
 export const pool = new Pool({
     user: envs.DB_USER,
-    password: envs.DB_PASSWORD, 
+    password: envs.DB_PASSWORD,
     host: envs.DB_HOST,
     port: envs.DB_PORT,
     database: envs.DB_NAME,
-    
-    // Optimizaciones de Resiliencia
-    max: 20, // Límite de conexiones simultáneas
-    idleTimeoutMillis: 30000, // Cierra conexiones ociosas
-    connectionTimeoutMillis: 5000, // Escudo: Si PostGIS no responde en 5s, lanza error en lugar de colgarse
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 5000,
 });
 
 pool.on('connect', () => {
-    console.log('📦 Conectado exitosamente a PostgreSQL (FocoCero Geo-DB)');
+    console.log('📦 ms-geo: Conectado exitosamente a PostgreSQL (PostGIS)');
 });
 
-// Escudo 3: Si la base de datos se cae a mitad de ejecución, matamos el contenedor 
-// para que Docker lo reinicie fresco y reconecte automáticamente.
 pool.on('error', (err: Error) => {
-    console.error('❌ Error fatal o pérdida de conexión con PostgreSQL:', err.message);
-    process.exit(-1); 
+    console.error('❌ ms-geo: Error inesperado en el pool de base de datos:', err.message);
+    // No matamos el proceso aquí para permitir que Docker Healthcheck lo gestione
 });
 
 export const testDbConnection = async () => {
@@ -32,12 +27,12 @@ export const testDbConnection = async () => {
         const client = await pool.connect();
         const res = await client.query('SELECT PostGIS_version();');
         console.log('🗺️  Motor Espacial PostGIS detectado:', res.rows[0].postgis_version);
-        
-        // ¡CRÍTICO! Liberar el cliente de vuelta al pool para evitar fugas de memoria
-        client.release(); 
-    } catch (error: any) {
-        console.error('🚨 Error crítico: No se pudo conectar a la base de datos o PostGIS no está instalado.');
-        console.error(error.message);
-        process.exit(1); 
+        client.release();
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(
+            '⚠️ ms-geo: Advertencia - No se pudo conectar a PostGIS inicialmente.',
+            message,
+        );
     }
 };

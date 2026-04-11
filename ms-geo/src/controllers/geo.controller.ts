@@ -1,159 +1,65 @@
 // src/controllers/geo.controller.ts
-
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { GeoService } from '../services/geo.service';
-import { GeoValidator } from '../validators/geo.validator';
+import { catchAsync } from '../helpers/catchAsync';
 
-/**
- * GeoController: Gestiona la inteligencia geoespacial de FocoCero.
- * Actúa estrictamente como director de tráfico.
- */
 export class GeoController {
+    // --- SECCIÓN CIUDADANA ---
 
-    // ============================================================================
-    // 🟢 SECCIÓN: CREACIÓN (REPORTES CIUDADANOS)
-    // ============================================================================
+    static reportarFoco = catchAsync(async (req: Request, res: Response) => {
+        const nuevoFoco = await GeoService.crearFoco(req.body);
+        res.status(201).json({ ok: true, data: nuevoFoco });
+    });
 
-    static async reportarFoco(req: Request, res: Response, next: NextFunction): Promise<void> {
-        try {
-            const validation = GeoValidator.validarCreacion(req.body);
-            if (!validation.isValid) {
-                res.status(400).json({ ok: false, error: validation.error });
-                return;
-            }
+    static obtenerTodos = catchAsync(async (_req: Request, res: Response) => {
+        const focos = await GeoService.obtenerTodos();
+        res.status(200).json({ ok: true, data: focos });
+    });
 
-            const nuevoFoco = await GeoService.crearFoco(req.body);
-            
-            res.status(201).json({ 
-                ok: true, 
-                msg: 'Incendio reportado y geolocalizado con éxito.', 
-                data: nuevoFoco 
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
+    static obtenerPorId = catchAsync(async (req: Request, res: Response) => {
+        const foco = await GeoService.obtenerPorId(String(req.params.id));
+        res.status(200).json({ ok: true, data: foco });
+    });
 
-    // ============================================================================
-    // 🔵 SECCIÓN: LECTURA (MONITOREO GLOBAL Y RADAR)
-    // ============================================================================
+    static obtenerCercanos = catchAsync(async (req: Request, res: Response) => {
+        const { lat, lng, radio } = req.query as unknown as {
+            lat: number;
+            lng: number;
+            radio: number;
+        };
+        const focosCercanos = await GeoService.obtenerCercanos(lat, lng, radio);
+        res.status(200).json({ ok: true, data: focosCercanos });
+    });
 
-    static async obtenerTodos(_req: Request, res: Response, next: NextFunction): Promise<void> {
-        try {
-            const focos = await GeoService.obtenerTodos();
-            res.status(200).json({ ok: true, data: focos });
-        } catch (error) {
-            next(error);
-        }
-    }
+    // --- SECCIÓN OPERATIVA ---
 
-    static async obtenerPorId(req: Request, res: Response, next: NextFunction): Promise<void> {
-        try {
-            // Solución al error de tipado: Forzamos (cast) a string
-            const id = req.params.id as string; 
-            const foco = await GeoService.obtenerPorId(id);
-            res.status(200).json({ ok: true, data: foco });
-        } catch (error) {
-            next(error);
-        }
-    }
+    static cambiarEstado = catchAsync(async (req: Request, res: Response) => {
+        const actualizado = await GeoService.cambiarEstado(String(req.params.id), req.body.estado);
+        res.status(200).json({ ok: true, msg: 'Estado actualizado', data: actualizado });
+    });
 
-    static async obtenerCercanos(req: Request, res: Response, next: NextFunction): Promise<void> {
-        try {
-            // Extraemos y convertimos los parámetros de la URL (?lat=...&lng=...&radio=...)
-            const lat = parseFloat(req.query.lat as string);
-            const lng = parseFloat(req.query.lng as string);
-            const radio = parseInt(req.query.radio as string, 10);
+    static actualizarPerimetro = catchAsync(async (req: Request, res: Response) => {
+        const actualizado = await GeoService.actualizarPerimetro(
+            String(req.params.id),
+            req.body.area_quemada_wkt,
+        );
+        res.status(200).json({ ok: true, msg: 'Perímetro actualizado', data: actualizado });
+    });
 
-            if (isNaN(lat) || isNaN(lng) || isNaN(radio)) {
-                res.status(400).json({ 
-                    ok: false, 
-                    error: 'Faltan parámetros espaciales. Debes enviar lat (numérico), lng (numérico) y radio (metros).' 
-                });
-                return;
-            }
+    /**
+     * Actualización Integral (PUT): Recalcula severidad si cambian factores climáticos.
+     */
+    static actualizarCompleto = catchAsync(async (req: Request, res: Response) => {
+        const actualizado = await GeoService.actualizarCompleto(String(req.params.id), req.body);
+        res.status(200).json({
+            ok: true,
+            msg: 'Información integral del reporte actualizada.',
+            data: actualizado,
+        });
+    });
 
-            const focosCercanos = await GeoService.obtenerCercanos(lat, lng, radio);
-            res.status(200).json({ ok: true, data: focosCercanos });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // ============================================================================
-    // 🟠 SECCIÓN: ACTUALIZACIÓN (OPERATIVA Y ESPACIAL)
-    // ============================================================================
-
-    static async cambiarEstado(req: Request, res: Response, next: NextFunction): Promise<void> {
-        try {
-            const id = req.params.id as string;
-            const { estado } = req.body;
-
-            // Usamos el validador con el nombre correcto que definimos
-            const validation = GeoValidator.validarEstado(estado);
-            if (!validation.isValid) {
-                res.status(400).json({ ok: false, error: validation.error });
-                return;
-            }
-
-            const actualizado = await GeoService.cambiarEstado(id, estado);
-            res.status(200).json({ 
-                ok: true, 
-                msg: `Estado operativo actualizado a: ${estado}`, 
-                data: actualizado 
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    static async actualizarPerimetro(req: Request, res: Response, next: NextFunction): Promise<void> {
-        try {
-            const id = req.params.id as string;
-            const { area_quemada_wkt } = req.body;
-
-            const validation = GeoValidator.validarPerimetroWKT(area_quemada_wkt);
-            if (!validation.isValid) {
-                res.status(400).json({ ok: false, error: validation.error });
-                return;
-            }
-
-            const actualizado = await GeoService.actualizarPerimetro(id, area_quemada_wkt);
-            res.status(200).json({ 
-                ok: true, 
-                msg: 'Perímetro espacial del incendio actualizado en el mapa táctico.', 
-                data: actualizado 
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    static async actualizarCompleto(req: Request, res: Response, next: NextFunction): Promise<void> {
-        try {
-            const id = req.params.id as string;
-            const actualizado = await GeoService.actualizarCompleto(id, req.body);
-            res.status(200).json({ 
-                ok: true, 
-                msg: 'Información integral del reporte actualizada.', 
-                data: actualizado 
-            });
-        } catch (error) {
-            next(error);
-        }
-    }
-
-    // ============================================================================
-    // 🔴 SECCIÓN: ELIMINACIÓN (LIMPIEZA DE DATOS)
-    // ============================================================================
-
-    static async eliminar(req: Request, res: Response, next: NextFunction): Promise<void> {
-        try {
-            const id = req.params.id as string;
-            await GeoService.eliminar(id);
-            res.status(200).json({ ok: true, msg: 'Reporte removido exitosamente del sistema operativo.' });
-        } catch (error) {
-            next(error);
-        }
-    }
+    static eliminar = catchAsync(async (req: Request, res: Response) => {
+        await GeoService.eliminar(String(req.params.id));
+        res.status(200).json({ ok: true, msg: 'Reporte removido exitosamente.' });
+    });
 }
