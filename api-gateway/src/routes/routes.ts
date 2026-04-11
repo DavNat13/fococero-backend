@@ -96,6 +96,17 @@ appRoutes.use(
 );
 
 /**
+ * 🖼️ MULTIMEDIA SERVICE 🌟
+ * Requiere token verificado para subir y gestionar archivos.
+ */
+appRoutes.use(
+  "/api/multimedia",
+  traceIdMiddleware,
+  verifyToken, // 🛡️ Protegemos el acceso
+  createProxyMiddleware(getProxyOptions(envs.MULTIMEDIA_SERVICE_URL)),
+);
+
+/**
  * ⚠️ ALERTAS SERVICE (100% Privado)
  */
 appRoutes.use(

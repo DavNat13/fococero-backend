@@ -1,4 +1,4 @@
-// src/config/envs.ts
+// ms-alertas/src/config/envs.ts
 import 'dotenv/config';
 import * as env from 'env-var';
 
@@ -20,6 +20,9 @@ export const envs = {
     DB_HOST: env.get('DB_HOST').required().asString(),
     DB_PORT: env.get('DB_PORT').required().asPortNumber(),
     DB_NAME: env.get('DB_NAME').required().asString(),
+
+    // 🖼️ URL del Microservicio de Multimedia
+    MULTIMEDIA_SERVICE_URL: env.get('MULTIMEDIA_SERVICE_URL').required().asString(),
 
     // Firebase Admin SDK
     FIREBASE_PROJECT_ID: env.get('FIREBASE_PROJECT_ID').required().asString(),

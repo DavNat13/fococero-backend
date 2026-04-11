@@ -1,9 +1,11 @@
-// src/services/reporte.service.ts
+// ms-reportes/src/services/reporte.service.ts
 
+import axios from 'axios';
 import { ReporteRepository } from '../repositories/reporte.repository';
 import { ICreateReporteDTO, IUpdateReporteDTO, EstadoReporte } from '../models/reporte.model';
 import { UserRole } from '../models/user.enum';
 import { AppError } from '../helpers/appError';
+import { envs } from '../config/envs';
 
 const ESTADOS_FINALES = new Set<EstadoReporte>([
     EstadoReporte.RESUELTO,
@@ -17,8 +19,54 @@ export class ReporteService {
     }
 
     // --- REPORTES ---
-    static async crearReporte(data: ICreateReporteDTO) {
-        return await ReporteRepository.crear(data);
+
+    /**
+     * Crea un reporte y vincula la multimedia asociada si existe.
+     * @param data Datos del reporte
+     * @param id_multimedia ID opcional de la imagen previamente subida
+     */
+    static async crearReporte(data: ICreateReporteDTO, id_multimedia?: string) {
+        // 1. Persistimos el reporte en la base de datos local de ms-reportes
+        const nuevoReporte = await ReporteRepository.crear(data);
+
+        // 2. Si el usuario adjuntó una foto, disparamos la vinculación en ms-multimedia
+        if (id_multimedia) {
+            // Se ejecuta de forma asíncrona para no bloquear la respuesta al usuario
+            this.vincularMultimedia(id_multimedia, data.id_ciudadano, nuevoReporte.id);
+        }
+
+        return nuevoReporte;
+    }
+
+    /**
+     * Comunicación interna (Inter-Service): Llama al ms-multimedia para vincular la foto.
+     */
+    private static async vincularMultimedia(
+        id_multimedia: string,
+        userId: string,
+        reporteId: string,
+    ) {
+        try {
+            const url = `${envs.MULTIMEDIA_SERVICE_URL}/api/v1/multimedia/${id_multimedia}/vincular`;
+
+            await axios.patch(
+                url,
+                {},
+                {
+                    headers: {
+                        'x-user-id': userId,
+                        'x-internal-call': 'ms-reportes',
+                    },
+                },
+            );
+
+            console.log(
+                `✅ Imagen ${id_multimedia} vinculada exitosamente al reporte ${reporteId}`,
+            );
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+            console.error(`⚠️ Error vinculando multimedia ${id_multimedia}:`, errorMessage);
+        }
     }
 
     static async obtenerReportes(
@@ -27,7 +75,6 @@ export class ReporteService {
         usuarioAuth: { uid: string; rol: string },
         filtros: { estado?: string; categoria_id?: string },
     ) {
-        // En un futuro aquí se puede inyectar lógica de filtrado por zona de brigada
         return await ReporteRepository.obtenerTodos(limit, offset, filtros);
     }
 
@@ -49,12 +96,10 @@ export class ReporteService {
         const reporte = await ReporteRepository.obtenerPorId(reporteId);
         if (!reporte) throw new AppError('Reporte no encontrado.', 404);
 
-        // 🔒 Regla: Solo el dueño o un Admin pueden editar
         if (reporte.id_ciudadano !== usuarioAuth.uid && usuarioAuth.rol !== UserRole.ADMIN) {
             throw new AppError('No tienes permiso para modificar este reporte.', 403);
         }
 
-        // 🔒 Regla: Solo se permite edición ciudadana si está PENDIENTE
         if (reporte.estado !== EstadoReporte.PENDIENTE && usuarioAuth.rol !== UserRole.ADMIN) {
             throw new AppError('No puedes editar un reporte que ya está siendo procesado.', 400);
         }
@@ -73,7 +118,6 @@ export class ReporteService {
         return await ReporteRepository.eliminar(reporteId);
     }
 
-    // --- OPERACIONES Y AUDITORÍA ---
     static async obtenerHistorial(reporteId: string) {
         const reporte = await ReporteRepository.obtenerPorId(reporteId);
         if (!reporte) throw new AppError('Reporte no encontrado.', 404);
@@ -86,7 +130,6 @@ export class ReporteService {
         usuarioAuth: { uid: string; rol: string },
         comentarios?: string,
     ) {
-        // 🛡️ Solo Brigadistas o Admins pueden mover estados operativos
         if (usuarioAuth.rol === UserRole.CIUDADANO) {
             throw new AppError(
                 'Un ciudadano no tiene permisos para auditar estados de un incidente.',
@@ -101,7 +144,6 @@ export class ReporteService {
             throw new AppError(`El reporte ya se encuentra marcado como ${nuevoEstado}.`, 400);
         }
 
-        // 🛡️ Regla de flujo: Un incidente resuelto o falso no vuelve a estar pendiente
         if (ESTADOS_FINALES.has(reporteActual.estado) && nuevoEstado === EstadoReporte.PENDIENTE) {
             throw new AppError('Un incidente cerrado no puede volver a estado pendiente.', 400);
         }

@@ -1,3 +1,5 @@
+// api-gateway/src/config/envs.ts
+
 import "dotenv/config";
 import { z } from "zod";
 
@@ -12,6 +14,7 @@ const envSchema = z.object({
   GEO_SERVICE_URL: z.string().url(),
   ALERTAS_SERVICE_URL: z.string().url(),
   REPORTES_SERVICE_URL: z.string().url(),
+  MULTIMEDIA_SERVICE_URL: z.string().url(),
 
   // Whitelist de CORS
   CORS_ORIGINS: z
@@ -24,7 +27,7 @@ const envSchema = z.object({
   FIREBASE_PRIVATE_KEY: z
     .string()
     .min(1)
-    .transform((val) => val.replace(/\\n/g, "\n").replace(/"/g, "").trim()), // Limpieza automática
+    .transform((val) => val.replace(/\\n/g, "\n").replace(/"/g, "").trim()), // Limpieza automática de la llave
 });
 
 const _env = envSchema.safeParse(process.env);

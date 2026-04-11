@@ -18,6 +18,7 @@ services:
       - ./ms-geo/database/init.sql:/docker-entrypoint-initdb.d/02-init-geo.sql
       - ./ms-alertas/database/init.sql:/docker-entrypoint-initdb.d/03-init-alertas.sql
       - ./ms-reportes/database/init.sql:/docker-entrypoint-initdb.d/04-init-reportes.sql
+      - ./ms-multimedia/database/init.sql:/docker-entrypoint-initdb.d/05-init-multimedia.sql  
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s
@@ -55,6 +56,7 @@ services:
       - ms-geo
       - ms-alertas
       - ms-reportes
+      - ms-multimedia 
     networks:
       - fococero-network
 
@@ -65,7 +67,7 @@ services:
     build: ./ms-auth
     container_name: ms-auth
     expose:
-      - "3001" # Solo accesible dentro de fococero-network
+      - "3001"
     env_file: ./ms-auth/.env
     depends_on:
       db-fococero:
@@ -77,7 +79,7 @@ services:
     build: ./ms-geo
     container_name: ms-geo
     expose:
-      - "3002" # Solo accesible dentro de fococero-network
+      - "3002"
     env_file: ./ms-geo/.env
     depends_on:
       db-fococero:
@@ -89,7 +91,7 @@ services:
     build: ./ms-alertas
     container_name: ms-alertas
     expose:
-      - "3003" # Solo accesible dentro de fococero-network
+      - "3003"
     env_file: ./ms-alertas/.env
     depends_on:
       db-fococero:
@@ -101,8 +103,20 @@ services:
     build: ./ms-reportes
     container_name: ms-reportes
     expose:
-      - "3004" # Solo accesible dentro de fococero-network
+      - "3004"
     env_file: ./ms-reportes/.env
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+
+  ms-multimedia:
+    build: ./ms-multimedia
+    container_name: ms-multimedia
+    expose:
+      - "3005"  
+    env_file: ./ms-multimedia/.env
     depends_on:
       db-fococero:
         condition: service_healthy

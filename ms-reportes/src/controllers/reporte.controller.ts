@@ -1,3 +1,5 @@
+// ms-reportes/src/controllers/reporte.controller.ts
+
 import { Request, Response } from 'express';
 import { ReporteService } from '../services/reporte.service';
 import { catchAsync } from '../helpers/catchAsync';
@@ -20,15 +22,21 @@ export class ReporteController {
 
     /**
      * Crea un nuevo reporte ciudadano.
-     * Utiliza req.user.uid inyectado por el middleware de autenticación.
+     * Ahora soporta la vinculación de imágenes mediante id_multimedia.
      */
     static crearReporte = catchAsync(async (req: Request, res: Response) => {
+        // 1. Extraemos el id_multimedia y el resto de los datos del body
+        const { id_multimedia, ...reporteData } = req.body;
+
+        // 2. Preparamos el DTO agregando el ID del ciudadano desde el token verificado
         const data = {
-            ...req.body,
+            ...reporteData,
             id_ciudadano: req.user!.uid,
         };
 
-        const nuevoReporte = await ReporteService.crearReporte(data);
+        // 3. Llamamos al servicio pasando ambos parámetros
+        // El servicio se encargará de guardar el reporte y avisar al ms-multimedia
+        const nuevoReporte = await ReporteService.crearReporte(data, id_multimedia);
 
         res.status(201).json({
             ok: true,
@@ -44,7 +52,6 @@ export class ReporteController {
         const limit = parseInt(req.query.limit as string, 10) || 10;
         const offset = parseInt(req.query.offset as string, 10) || 0;
 
-        // Extraemos filtros opcionales de la query string
         const filtros = {
             estado: req.query.estado as string,
             categoria_id: req.query.categoria_id as string,
@@ -88,7 +95,7 @@ export class ReporteController {
     });
 
     /**
-     * Permite la edición parcial de un reporte (solo si está PENDIENTE y el usuario es dueño).
+     * Permite la edición parcial de un reporte.
      */
     static actualizarReporte = catchAsync(async (req: Request, res: Response) => {
         const id = String(req.params.id);
@@ -125,8 +132,7 @@ export class ReporteController {
     // --- OPERACIONES Y AUDITORÍA ---
 
     /**
-     * Cambia el estado operativo de un reporte (solo Brigadistas/Admin).
-     * Registra automáticamente el cambio en el historial.
+     * Cambia el estado operativo de un reporte (Brigadistas/Admin).
      */
     static cambiarEstado = catchAsync(async (req: Request, res: Response) => {
         const id = String(req.params.id);
@@ -148,7 +154,7 @@ export class ReporteController {
     });
 
     /**
-     * Obtiene la trazabilidad completa de cambios de estado de un reporte específico.
+     * Obtiene la trazabilidad completa de cambios de estado.
      */
     static obtenerHistorial = catchAsync(async (req: Request, res: Response) => {
         const id = String(req.params.id);

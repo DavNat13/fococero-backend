@@ -1,0 +1,61 @@
+name: CI - MS Multimedia
+
+# 1. ¿Cuándo se ejecuta este pipeline?
+on:
+  push:
+    branches: ["main", "develop"]
+    # Solo se ejecuta si hay cambios DENTRO de la carpeta ms-multimedia
+    paths:
+      - "ms-multimedia/**"
+  pull_request:
+    branches: ["main", "develop"]
+    paths:
+      - "ms-multimedia/**"
+
+# 2. ¿Qué trabajos (jobs) va a realizar?
+jobs:
+  test-and-build:
+    name: Test and Build
+    runs-on: ubuntu-latest
+
+    # Establecemos el directorio de trabajo por defecto para todos los pasos
+    defaults:
+      run:
+        working-directory: ./ms-multimedia
+
+    steps:
+      # Paso 1: Clonar el repositorio en la máquina virtual de GitHub
+      - name: 📥 Checkout del código
+        uses: actions/checkout@v4
+
+      # Paso 2: Instalar Node.js (usando la versión 22 como en tu Dockerfile)
+      - name: ⚙️ Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "./ms-multimedia/package-lock.json"
+
+      # Paso 3: Instalar dependencias exactas (usamos 'ci' en lugar de 'install' para pipelines)
+      - name: 📦 Instalar Dependencias
+        run: npm ci
+
+      # Paso 4: Ejecutar la suite de pruebas (nuestros 6 tests de Jest)
+      - name: 🧪 Ejecutar Tests (Jest & Supertest)
+        run: npm test
+        env:
+          NODE_ENV: test
+          # Proveemos variables falsas solo para que el validador de envs.ts no falle en el CI
+          PORT: 3005
+          DB_USER: test
+          DB_PASSWORD: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: testdb
+          FIREBASE_PROJECT_ID: fococero-test
+          FIREBASE_CLIENT_EMAIL: test@fococero-test.iam.gserviceaccount.com
+          FIREBASE_PRIVATE_KEY: "test-key"
+
+      # Paso 5: Compilar el código TypeScript a JavaScript
+      - name: 🏗️ Compilar TypeScript (Build)
+        run: npm run build
