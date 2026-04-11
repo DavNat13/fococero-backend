@@ -1,5 +1,8 @@
-# Docker Compose FocoCero - Versión Final Sincronizada
+# Docker Compose FocoCero - Arquitectura Final con API Gateway
 services:
+  # ==========================================
+  # 🗄️ BASE DE DATOS Y GESTIÓN
+  # ==========================================
   db-fococero:
     image: postgis/postgis:15-3.3
     container_name: fococero-db
@@ -8,7 +11,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME}
     ports:
-      - "5433:5432" # Windows usa 5433 / Docker usa 5432
+      - "5433:5432" # Expuesto solo para desarrollo/debug local
     volumes:
       - fococero_pgdata:/var/lib/postgresql/data
       - ./ms-auth/init.sql:/docker-entrypoint-initdb.d/01-init-auth.sql
@@ -38,36 +41,32 @@ services:
     networks:
       - fococero-network
 
+  # ==========================================
+  # 🚦 API GATEWAY (Punto de Entrada Único)
+  # ==========================================
+  api-gateway:
+    build: ./api-gateway
+    container_name: fococero-gateway
+    ports:
+      - "3000:3000" # 🌍 ÚNICO PUERTO EXPUESTO AL FRONTEND
+    env_file: ./api-gateway/.env
+    depends_on:
+      - ms-auth
+      - ms-geo
+      - ms-alertas
+      - ms-reportes
+    networks:
+      - fococero-network
+
+  # ==========================================
+  # 🧱 MICROSERVICIOS (Red Interna Privada)
+  # ==========================================
   ms-auth:
     build: ./ms-auth
     container_name: ms-auth
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001" # Solo accesible dentro de fococero-network
     env_file: ./ms-auth/.env
-    depends_on:
-      db-fococero:
-        condition: service_healthy
-    networks:
-      - fococero-network
-
-  ms-reportes:
-    build: ./ms-reportes
-    container_name: ms-reportes
-    ports:
-      - "3004:3004"
-    env_file: ./ms-reportes/.env
-    depends_on:
-      db-fococero:
-        condition: service_healthy
-    networks:
-      - fococero-network
-
-  ms-alertas:
-    build: ./ms-alertas
-    container_name: ms-alertas
-    ports:
-      - "3003:3003" # Ajustado: ms-alertas usa 3003 internamente
-    env_file: ./ms-alertas/.env
     depends_on:
       db-fococero:
         condition: service_healthy
@@ -77,8 +76,8 @@ services:
   ms-geo:
     build: ./ms-geo
     container_name: ms-geo
-    ports:
-      - "3002:3002" # Ajustado: ms-geo usa 3002 internamente
+    expose:
+      - "3002" # Solo accesible dentro de fococero-network
     env_file: ./ms-geo/.env
     depends_on:
       db-fococero:
@@ -86,10 +85,38 @@ services:
     networks:
       - fococero-network
 
-networks:
-  fococero-network:
-    driver: bridge
+  ms-alertas:
+    build: ./ms-alertas
+    container_name: ms-alertas
+    expose:
+      - "3003" # Solo accesible dentro de fococero-network
+    env_file: ./ms-alertas/.env
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
 
+  ms-reportes:
+    build: ./ms-reportes
+    container_name: ms-reportes
+    expose:
+      - "3004" # Solo accesible dentro de fococero-network
+    env_file: ./ms-reportes/.env
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+
+# ==========================================
+# 💾 VOLUMEN Y RED
+# ==========================================
 volumes:
   fococero_pgdata:
     name: fococero_pgdata
+
+networks:
+  fococero-network:
+    name: fococero-network
+    driver: bridge
