@@ -1,11 +1,18 @@
 // src/services/alerta.service.ts
+import axios from 'axios';
 import { AlertaRepository } from '../repositories/alerta.repository';
 import { IAlerta, EstadoAlerta } from '../models/alerta.model';
 import { AppError } from '../helpers/appError';
+import { envs } from '../config/envs';
 
 export class AlertaService {
     // 🟢 CREACIÓN
-    static async crearAlerta(data: IAlerta): Promise<IAlerta> {
+    /**
+     * Crea una alerta táctica y vincula la multimedia asociada si el brigadista adjuntó una foto.
+     * @param data Datos espaciales y de la alerta
+     * @param id_multimedia ID opcional de la imagen subida al ms-multimedia
+     */
+    static async crearAlerta(data: IAlerta, id_multimedia?: string): Promise<IAlerta> {
         if (
             !data.ubicacion ||
             !data.ubicacion.coordinates ||
@@ -13,7 +20,48 @@ export class AlertaService {
         ) {
             throw new AppError('Las coordenadas [longitud, latitud] son obligatorias.', 400);
         }
-        return await AlertaRepository.crear(data);
+
+        // 1. Guardamos la alerta en la base de datos local
+        const nuevaAlerta = await AlertaRepository.crear(data);
+
+        // 2. Si hay evidencia fotográfica, notificamos al ms-multimedia para que la adopte
+        if (id_multimedia && nuevaAlerta.id) {
+            // Fire and forget: asíncrono para no bloquear la respuesta rápida de la alerta
+            this.vincularMultimedia(id_multimedia, data.usuario_id, nuevaAlerta.id);
+        }
+
+        return nuevaAlerta;
+    }
+
+    /**
+     * Comunicación interna (Inter-Service): Llama al ms-multimedia para vincular la foto.
+     */
+    private static async vincularMultimedia(
+        id_multimedia: string,
+        userId: string,
+        alertaId: string,
+    ) {
+        try {
+            const url = `${envs.MULTIMEDIA_SERVICE_URL}/api/v1/multimedia/${id_multimedia}/vincular`;
+
+            await axios.patch(
+                url,
+                {},
+                {
+                    headers: {
+                        'x-user-id': userId,
+                        'x-internal-call': 'ms-alertas',
+                    },
+                },
+            );
+
+            console.log(
+                `✅ Imagen ${id_multimedia} vinculada exitosamente a la alerta ${alertaId}`,
+            );
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+            console.error(`⚠️ Error vinculando multimedia ${id_multimedia}:`, errorMessage);
+        }
     }
 
     // 🔵 LECTURA ESPACIAL Y CONSULTAS
@@ -31,7 +79,6 @@ export class AlertaService {
         return await AlertaRepository.encontrarCercanas(lng, lat, radioMetros);
     }
 
-    // ✅ FIX: Métodos de lectura agregados
     static async obtenerPorUsuario(usuario_id: string): Promise<IAlerta[]> {
         return await AlertaRepository.obtenerPorUsuario(usuario_id);
     }

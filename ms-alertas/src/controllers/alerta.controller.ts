@@ -6,11 +6,17 @@ export class AlertaController {
     // 🟢 CREACIÓN
     static async crear(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
+            // 1. Extraemos el id_multimedia y el resto de los datos de la alerta
+            const { id_multimedia, ...restBody } = req.body;
+
+            // 2. Inyectamos el ID del usuario autenticado (desde el Gateway)
             const alertaData = {
-                ...req.body,
+                ...restBody,
                 usuario_id: req.user!.uid,
             };
-            const nuevaAlerta = await AlertaService.crearAlerta(alertaData);
+
+            // 3. Llamamos al servicio pasando ambos parámetros para que gestione la adopción de la foto
+            const nuevaAlerta = await AlertaService.crearAlerta(alertaData, id_multimedia);
 
             res.status(201).json({
                 ok: true,
@@ -55,7 +61,6 @@ export class AlertaController {
 
     static async obtenerPorId(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            // ✅ FIX: Forzamos el casteo a string primitivo
             const id = String(req.params.id);
             const alerta = await AlertaService.obtenerPorId(id);
             res.status(200).json({ ok: true, data: alerta });
@@ -76,7 +81,6 @@ export class AlertaController {
     // 🟠 ACTUALIZACIÓN OPERATIVA
     static async cambiarEstado(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            // ✅ FIX: Forzamos el casteo a string primitivo
             const id = String(req.params.id);
             const alerta = await AlertaService.cambiarEstado(id, req.body.estado);
             res.status(200).json({
@@ -91,7 +95,6 @@ export class AlertaController {
 
     static async verificar(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            // ✅ FIX: Forzamos el casteo a string primitivo
             const id = String(req.params.id);
             const { esFuegoConfirmado } = req.body;
 
@@ -120,7 +123,6 @@ export class AlertaController {
     // 🔴 ELIMINACIÓN
     static async eliminar(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            // ✅ FIX: Forzamos el casteo a string primitivo
             const id = String(req.params.id);
             await AlertaService.eliminar(id);
             res.status(200).json({ ok: true, msg: 'La alerta ha sido eliminada del sistema.' });

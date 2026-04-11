@@ -1,12 +1,11 @@
+// api-gateway/src/docs/swagger.ts
+
 import { authPaths } from "./auth.swagger";
 import { geoPaths, geoSchemas } from "./geo.swagger";
 import { alertasPaths, alertasSchemas } from "./alertas.swagger";
 import { reportesPaths, reportesSchemas } from "./reportes.swagger";
+import { multimediaPaths, multimediaSchemas } from "./multimedia.swagger"; 
 
-/**
- * Configuración maestra de Swagger para FocoCero.
- * Integra las definiciones de rutas y esquemas de los 4 microservicios.
- */
 export const swaggerDocument = {
   openapi: "3.0.0",
   info: {
@@ -32,10 +31,10 @@ export const swaggerDocument = {
       },
     },
     schemas: {
-      // Unificamos todos los modelos de datos para que Swagger los reconozca
       ...geoSchemas,
       ...alertasSchemas,
       ...reportesSchemas,
+      ...multimediaSchemas, 
     },
   },
   tags: [
@@ -48,6 +47,10 @@ export const swaggerDocument = {
       description: "Motor espacial PostGIS para el monitoreo de focos.",
     },
     {
+      name: "Multimedia (ms-multimedia)",
+      description: "Procesamiento y optimización de imágenes (Sharp/Firebase).",
+    }, 
+    {
       name: "Alertas (ms-alertas)",
       description: "Sistema de notificaciones y verificación táctica.",
     },
@@ -57,9 +60,9 @@ export const swaggerDocument = {
     },
   ],
   paths: {
-    // Fusión automática de todas las rutas definidas en los archivos .swagger.ts
     ...authPaths,
     ...geoPaths,
+    ...multimediaPaths, 
     ...alertasPaths,
     ...reportesPaths,
   },
