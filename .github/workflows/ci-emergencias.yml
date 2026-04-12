@@ -44,6 +44,10 @@ jobs:
           PORT: 3006
           INTERNAL_SECRET_TOKEN: mock-test-token
           BOMBEROS_API_KEY: mock-api-key
+          DB_USER: test_user
+          DB_PASSWORD: test_password
+          DB_NAME: test_db
+          API_GATEWAY_URL: http://mock-gateway:3000
 
       - name: Build Project
         run: npm run build
