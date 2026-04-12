@@ -42,14 +42,23 @@ jobs:
         env:
           NODE_ENV: test
           PORT: 3006
-          INTERNAL_SECRET_TOKEN: mock-test-token
-          BOMBEROS_API_KEY: mock-api-key
           DB_USER: test_user
           DB_PASSWORD: test_password
           DB_NAME: test_db
-          API_GATEWAY_URL: http://mock-gateway:3000
           DB_HOST_LOCAL: localhost
           DB_PORT_LOCAL: 5432
+
+          INTERNAL_SECRET_TOKEN: mock-test-token
+          API_GATEWAY_URL: http://mock-gateway:3000
+
+          BOMBEROS_API_URL: https://mock.bomberos.cl
+          BOMBEROS_API_KEY: mock-api-key
+          CONAF_API_URL: https://mock.conaf.cl
+          CONAF_API_KEY: mock-conaf-key
+          CARABINEROS_API_URL: https://mock.carabineros.cl
+          CARABINEROS_API_KEY: mock-carabineros-key
+          SENAPRED_API_URL: https://mock.senapred.cl
+          SENAPRED_API_KEY: mock-senapred-key+
 
       - name: Build Project
         run: npm run build
