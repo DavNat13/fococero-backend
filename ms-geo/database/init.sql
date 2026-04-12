@@ -1,7 +1,7 @@
 -- =================================================================
 -- FOCOCERO - SCRIPT DE INICIALIZACIÓN GEOESPACIAL (PRO VERSION)
 -- =================================================================
-
+\c geo_db;
 -- 1. Habilitar la extensión PostGIS
 CREATE EXTENSION IF NOT EXISTS postgis;
 

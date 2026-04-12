@@ -1,0 +1,100 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "FocoCero - MS Emergencias",
+        "description": "API para orquestación y trazabilidad de despachos a organismos de emergencia (Bomberos, CONAF, SAMU, etc.)",
+        "version": "1.0.0",
+        "contact": {
+            "name": "Equipo Backend FocoCero"
+        }
+    },
+    "servers": [
+        {
+            "url": "/api/v1/emergencias",
+            "description": "Servidor Principal"
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "InternalApiKey": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "x-internal-token",
+                "description": "Token de seguridad Zero-Trust para comunicación entre microservicios"
+            }
+        },
+        "schemas": {
+            "DespachoRequest": {
+                "type": "object",
+                "required": [
+                    "alerta_id",
+                    "correlation_id",
+                    "organismo",
+                    "prioridad",
+                    "request_payload",
+                    "endpoint_url"
+                ],
+                "properties": {
+                    "alerta_id": { "type": "string", "format": "uuid" },
+                    "correlation_id": { "type": "string", "format": "uuid" },
+                    "organismo": {
+                        "type": "string",
+                        "enum": ["BOMBEROS", "CONAF", "SAMU", "CARABINEROS"]
+                    },
+                    "prioridad": { "type": "string", "enum": ["ALTA", "MEDIA", "BAJA"] },
+                    "endpoint_url": { "type": "string", "format": "uri" },
+                    "request_payload": {
+                        "type": "object",
+                        "description": "JSON dinámico según el organismo"
+                    }
+                }
+            }
+        }
+    },
+    "security": [{ "InternalApiKey": [] }],
+    "paths": {
+        "/health": {
+            "get": {
+                "summary": "Healthcheck",
+                "security": [],
+                "responses": {
+                    "200": { "description": "Servicio operativo y BD conectada" }
+                }
+            }
+        },
+        "/despachos": {
+            "post": {
+                "summary": "Crear y ejecutar un nuevo despacho",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": { "$ref": "#/components/schemas/DespachoRequest" }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": { "description": "Despacho iniciado correctamente" },
+                    "400": { "description": "Error de validación (Zod)" }
+                }
+            }
+        },
+        "/despachos/{correlation_id}": {
+            "get": {
+                "summary": "Consultar estado de un despacho",
+                "parameters": [
+                    {
+                        "name": "correlation_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string" }
+                    }
+                ],
+                "responses": {
+                    "200": { "description": "Estado recuperado" },
+                    "404": { "description": "Despacho no encontrado" }
+                }
+            }
+        }
+    }
+}

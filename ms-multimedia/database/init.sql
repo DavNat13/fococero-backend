@@ -1,3 +1,5 @@
+\c multimedia_db;
+
 DO $$ BEGIN
     CREATE TYPE contexto_multimedia AS ENUM ('reporte', 'alerta', 'perfil_ciudadano', 'evidencia_brigada');
 EXCEPTION

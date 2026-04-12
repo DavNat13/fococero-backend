@@ -15,6 +15,9 @@ const envSchema = z.object({
   ALERTAS_SERVICE_URL: z.string().url(),
   REPORTES_SERVICE_URL: z.string().url(),
   MULTIMEDIA_SERVICE_URL: z.string().url(),
+  EMERGENCIAS_SERVICE_URL: z.string().url(),  
+
+  INTERNAL_SECRET_TOKEN: z.string().min(1),
 
   // Whitelist de CORS
   CORS_ORIGINS: z
