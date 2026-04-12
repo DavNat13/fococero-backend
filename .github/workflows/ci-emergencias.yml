@@ -48,6 +48,8 @@ jobs:
           DB_PASSWORD: test_password
           DB_NAME: test_db
           API_GATEWAY_URL: http://mock-gateway:3000
+          DB_HOST_LOCAL: localhost
+          DB_PORT_LOCAL: 5432
 
       - name: Build Project
         run: npm run build
