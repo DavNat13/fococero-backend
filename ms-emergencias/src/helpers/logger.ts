@@ -35,7 +35,7 @@ export class Logger {
         console.warn(this.formatMessage('WARN', message, context));
     }
 
-    static error(message: string, error?: any, context: string = 'App') {
+    static error(message: string, error?: unknown, context: string = 'App') {
         console.error(this.formatMessage('ERROR', message, context));
         if (error && envs.NODE_ENV !== 'production') {
             console.error(error);
