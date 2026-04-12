@@ -83,6 +83,8 @@ export const multimediaPaths = {
   "/api/multimedia/{id}/vincular": {
     patch: {
       summary: "Vincular un archivo huérfano a una entidad",
+      description:
+        "Quita la marca de 'huérfano' de un archivo, indicando que ya pertenece a un reporte o alerta consolidada.",
       tags: ["Multimedia (ms-multimedia)"],
       security: [{ bearerAuth: [] }],
       parameters: [
@@ -101,7 +103,7 @@ export const multimediaPaths = {
   },
   "/api/multimedia/{id}": {
     delete: {
-      summary: "Eliminar un archivo lógicamente",
+      summary: "Eliminar un archivo lógicamente (Soft Delete)",
       tags: ["Multimedia (ms-multimedia)"],
       security: [{ bearerAuth: [] }],
       parameters: [
@@ -114,6 +116,42 @@ export const multimediaPaths = {
       ],
       responses: {
         200: { description: "Archivo eliminado correctamente." },
+        404: { description: "Archivo no encontrado o ya estaba eliminado." },
+      },
+    },
+  },
+  "/api/multimedia/internal/cleanup": {
+    get: {
+      summary: "Limpieza interna (Barrendero de Huérfanos)",
+      description:
+        "Busca y elimina físicamente de Firebase los archivos huérfanos que llevan más de 24 horas sin ser reclamados.",
+      tags: ["Multimedia (ms-multimedia)"],
+      security: [{ bearerAuth: [] }],
+      responses: {
+        200: {
+          description: "Proceso de limpieza finalizado.",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  success: { type: "boolean", example: true },
+                  message: {
+                    type: "string",
+                    example: "Proceso de limpieza finalizado.",
+                  },
+                  data: {
+                    type: "object",
+                    properties: {
+                      huerfanos_encontrados: { type: "integer", example: 15 },
+                      eliminados_firebase: { type: "integer", example: 15 },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     },
   },

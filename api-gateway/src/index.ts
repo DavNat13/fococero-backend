@@ -28,9 +28,9 @@ app.set("trust proxy", 1);
 // ⚙️ MIDDLEWARES GLOBALES (Rendimiento y Seguridad Perimetral)
 // ============================================================================
 app.use(helmet());
-app.use(cors(corsOptions)); // ✅ Usa la lista blanca estricta
+app.use(cors(corsOptions)); 
 app.use(compression());
-app.use(morganLogger); // ✅ Usa logs JSON en producción para Datadog/CloudWatch
+app.use(morganLogger);  
 
 // Limitador de fuerza bruta
 app.use(globalLimiter);

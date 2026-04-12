@@ -1,6 +1,8 @@
 -- ==============================================================================
 -- 1. EXTENSIONES Y FUNCIONES BASE (ms-reportes)
 -- ==============================================================================
+
+\c reportes_db;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "postgis";
 

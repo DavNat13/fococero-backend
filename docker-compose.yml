@@ -1,32 +1,38 @@
 # Docker Compose FocoCero - Arquitectura Final con API Gateway
+version: "3.8"
+
 services:
   # ==========================================
-  # 🗄️ BASE DE DATOS Y GESTIÓN
+  # 🗄️ BASE DE DATOS (POSTGRESQL + POSTGIS)
   # ==========================================
   db-fococero:
     image: postgis/postgis:15-3.3
     container_name: fococero-db
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: fococero_admin
+      POSTGRES_PASSWORD: foco0-1234
+      POSTGRES_DB: fococero_default_db
+      # Lista maestra de bases de datos para el script
+      POSTGRES_MULTIPLE_DATABASES: auth_db,geo_db,alertas_db,reportes_db,multimedia_db,emergencias_db
     ports:
-      - "5433:5432" # Expuesto solo para desarrollo/debug local
+      - "5433:5432"
     volumes:
       - fococero_pgdata:/var/lib/postgresql/data
+      # Inyectamos el script de creación múltiple
+      - ./init-multiple-databases.sh:/docker-entrypoint-initdb.d/00-init-databases.sh
       - ./ms-auth/init.sql:/docker-entrypoint-initdb.d/01-init-auth.sql
       - ./ms-geo/database/init.sql:/docker-entrypoint-initdb.d/02-init-geo.sql
       - ./ms-alertas/database/init.sql:/docker-entrypoint-initdb.d/03-init-alertas.sql
       - ./ms-reportes/database/init.sql:/docker-entrypoint-initdb.d/04-init-reportes.sql
-      - ./ms-multimedia/database/init.sql:/docker-entrypoint-initdb.d/05-init-multimedia.sql  
+      - ./ms-multimedia/database/init.sql:/docker-entrypoint-initdb.d/05-init-multimedia.sql
+      - ./ms-emergencias/database/init.sql:/docker-entrypoint-initdb.d/06-init-emergencias.sql
+    networks:
+      - fococero-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      test: ["CMD-SHELL", "pg_isready -U fococero_admin -d fococero_default_db"]
       interval: 5s
       timeout: 5s
       retries: 5
-    restart: always
-    networks:
-      - fococero-network
 
   pgadmin:
     image: dpage/pgadmin4
@@ -56,7 +62,7 @@ services:
       - ms-geo
       - ms-alertas
       - ms-reportes
-      - ms-multimedia 
+      - ms-multimedia
     networks:
       - fococero-network
 
@@ -115,8 +121,20 @@ services:
     build: ./ms-multimedia
     container_name: ms-multimedia
     expose:
-      - "3005"  
+      - "3005"
     env_file: ./ms-multimedia/.env
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+
+  ms-emergencias:
+    build: ./ms-emergencias
+    container_name: ms-emergencias
+    expose:
+      - "3006"
+    env_file: ./ms-emergencias/.env
     depends_on:
       db-fococero:
         condition: service_healthy

@@ -1,7 +1,7 @@
 -- =================================================================
 -- FOCOCERO - SCRIPT DE INICIALIZACIÓN DE BASE DE DATOS (ms-auth)
 -- =================================================================
-
+\c auth_db;
 -- 1. Crear los Tipos de Datos (Enums) si no existen
 DO $$ BEGIN
     CREATE TYPE user_role AS ENUM ('invitado', 'usuario', 'brigadista', 'admin');

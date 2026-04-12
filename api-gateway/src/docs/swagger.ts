@@ -4,7 +4,8 @@ import { authPaths } from "./auth.swagger";
 import { geoPaths, geoSchemas } from "./geo.swagger";
 import { alertasPaths, alertasSchemas } from "./alertas.swagger";
 import { reportesPaths, reportesSchemas } from "./reportes.swagger";
-import { multimediaPaths, multimediaSchemas } from "./multimedia.swagger"; 
+import { multimediaPaths, multimediaSchemas } from "./multimedia.swagger";
+import { emergenciasPaths, emergenciasSchemas } from "./emergencias.swagger";
 
 export const swaggerDocument = {
   openapi: "3.0.0",
@@ -12,7 +13,10 @@ export const swaggerDocument = {
     title: "FocoCero API Gateway - Centro de Control Total",
     version: "1.0.0",
     description:
-      "Documentación técnica unificada para la gestión de incendios forestales y seguridad cívica.",
+      "Documentación técnica unificada para la gestión de incendios forestales, seguridad cívica y orquestación de emergencias.",
+    contact: {
+      name: "Equipo Backend FocoCero",
+    },
   },
   servers: [
     {
@@ -29,12 +33,20 @@ export const swaggerDocument = {
         description:
           "MODO TEST: Usa 'fococero_test_token' para saltar Firebase en desarrollo.",
       },
+      InternalApiKey: {
+        type: "apiKey",
+        in: "header",
+        name: "x-internal-token",
+        description:
+          "Token de seguridad Zero-Trust para comunicación entre microservicios.",
+      },
     },
     schemas: {
       ...geoSchemas,
       ...alertasSchemas,
       ...reportesSchemas,
-      ...multimediaSchemas, 
+      ...multimediaSchemas,
+      ...emergenciasSchemas,
     },
   },
   tags: [
@@ -44,26 +56,35 @@ export const swaggerDocument = {
     },
     {
       name: "Geolocalización (ms-geo)",
-      description: "Motor espacial PostGIS para el monitoreo de focos.",
+      description:
+        "Motor espacial PostGIS para el monitoreo de focos en tiempo real.",
     },
     {
       name: "Multimedia (ms-multimedia)",
-      description: "Procesamiento y optimización de imágenes (Sharp/Firebase).",
-    }, 
+      description:
+        "Procesamiento y optimización de imágenes (Sharp/Firebase Storage).",
+    },
     {
       name: "Alertas (ms-alertas)",
-      description: "Sistema de notificaciones y verificación táctica.",
+      description:
+        "Sistema de notificaciones, verificación de focos y lógica de negocio.",
     },
     {
       name: "Reportes (ms-reportes)",
-      description: "Gestión administrativa de incidentes e historial.",
+      description: "Gestión de informes de incendios y estadísticas.",
+    },
+    {
+      name: "Emergencias (ms-emergencias)",
+      description:
+        "Orquestación crítica: Despacho a Bomberos, CONAF, SAMU y Carabineros.",
     },
   ],
   paths: {
     ...authPaths,
     ...geoPaths,
-    ...multimediaPaths, 
     ...alertasPaths,
     ...reportesPaths,
+    ...multimediaPaths,
+    ...emergenciasPaths,
   },
 };

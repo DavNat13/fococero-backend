@@ -34,12 +34,17 @@ const getProxyOptions = (target: string): Options => ({
       req: IncomingMessage,
       _res: ServerResponse,
     ) => {
+      // 1. Trazabilidad: Propagamos el Trace ID como Correlation ID para los microservicios
       const traceId = req.headers["x-trace-id"];
-
       if (traceId) {
         const id = Array.isArray(traceId) ? traceId[0] : traceId;
         proxyReq.setHeader("x-trace-id", id);
+        proxyReq.setHeader("x-correlation-id", id);
       }
+
+      // 🛡️ 2. Seguridad Zero-Trust: Inyectamos el token interno automáticamente.
+      // Esto permite que los MS validen que la petición viene del Gateway.
+      proxyReq.setHeader("x-internal-token", envs.INTERNAL_SECRET_TOKEN);
     },
 
     error: (err: Error, req: IncomingMessage, res: ServerResponse | Socket) => {
@@ -55,7 +60,7 @@ const getProxyOptions = (target: string): Options => ({
             JSON.stringify({
               success: false,
               message:
-                "El servicio solicitado está temporalmente fuera de línea o reiniciándose.",
+                "El servicio solicitado está temporalmente fuera de línea.",
             }),
           );
         }
@@ -96,22 +101,33 @@ appRoutes.use(
 );
 
 /**
- * 🖼️ MULTIMEDIA SERVICE 🌟
- * Requiere token verificado para subir y gestionar archivos.
+ * 🖼️ MULTIMEDIA SERVICE
+ * Requiere token verificado para gestión de archivos.
  */
 appRoutes.use(
   "/api/multimedia",
   traceIdMiddleware,
-  verifyToken, // 🛡️ Protegemos el acceso
+  verifyToken,
   createProxyMiddleware(getProxyOptions(envs.MULTIMEDIA_SERVICE_URL)),
 );
 
 /**
- * ⚠️ ALERTAS SERVICE (100% Privado)
+ * ⚠️ ALERTAS SERVICE
  */
 appRoutes.use(
   "/api/alertas",
   traceIdMiddleware,
   verifyToken,
   createProxyMiddleware(getProxyOptions(envs.ALERTAS_SERVICE_URL)),
+);
+
+/**
+ * 🚒 EMERGENCIAS SERVICE
+ * Orquestación de despacho a organismos.
+ */
+appRoutes.use(
+  "/api/emergencias",
+  traceIdMiddleware,
+  verifyToken, // Solo personal autorizado/autenticado puede disparar despachos
+  createProxyMiddleware(getProxyOptions(envs.EMERGENCIAS_SERVICE_URL)),
 );

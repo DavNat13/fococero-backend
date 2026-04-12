@@ -1,7 +1,7 @@
 -- ==========================================
 -- INICIALIZACIÓN DE TABLAS: MS-ALERTAS (ENTERPRISE)
 -- ==========================================
-
+\c alertas_db;
 -- 1. Habilitar extensión espacial
 CREATE EXTENSION IF NOT EXISTS postgis;
 
@@ -29,8 +29,7 @@ CREATE TYPE estado_alerta AS ENUM (
     'DESCARTADA'
 );
 
--- 3. Funciones Automáticas (Triggers)
--- 3a. Función para actualizar fecha_actualizacion (✅ FIX: Nombre Único)
+    
 CREATE OR REPLACE FUNCTION update_alertas_modtime()
 RETURNS TRIGGER AS $$
 BEGIN
