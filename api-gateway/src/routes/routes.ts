@@ -83,6 +83,17 @@ appRoutes.use(
 );
 
 /**
+ * 📊 ANALITICA SERVICE (Capa de Inteligencia)
+ * Requiere token verificado debido a que maneja datos sensibles de riesgo.
+ */
+appRoutes.use(
+  "/api/analitica",
+  traceIdMiddleware,
+  verifyToken,
+  createProxyMiddleware(getProxyOptions(envs.ANALITICA_SERVICE_URL)),
+);
+
+/**
  * 🗺️ GEO SERVICE
  */
 appRoutes.use(

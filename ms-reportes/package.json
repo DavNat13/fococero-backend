@@ -3,8 +3,11 @@
     "version": "1.0.0",
     "description": "Microservicio de Reportes - FocoCero",
     "main": "dist/index.js",
+    "directories": {
+        "test": "test"
+    },
     "scripts": {
-        "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+        "dev": "tsx watch src/index.ts",
         "build": "tsc",
         "start": "node dist/index.js",
         "test": "jest --passWithNoTests",
@@ -46,12 +49,9 @@
         "prettier": "^3.8.1",
         "supertest": "^7.2.2",
         "ts-jest": "^29.4.6",
-        "ts-node-dev": "^2.0.0",
+        "tsx": "^4.21.0",
         "typescript": "^5.9.3",
         "typescript-eslint": "^8.58.0"
-    },
-    "directories": {
-        "test": "test"
     },
     "keywords": [],
     "author": "",
