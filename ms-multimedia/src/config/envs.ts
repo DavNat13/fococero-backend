@@ -1,5 +1,3 @@
-// ms-multimedia/src/config/envs.ts
-
 import 'dotenv/config';
 import { z } from 'zod';
 
@@ -7,14 +5,10 @@ const envVarsSchema = z.object({
     PORT: z.string().transform(Number).default('3005'),
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
     GATEWAY_URL: z.string().url(),
-
-    // --- FIREBASE ADMIN SDK & STORAGE ---
     FIREBASE_PROJECT_ID: z.string(),
     FIREBASE_CLIENT_EMAIL: z.string().email(),
     FIREBASE_PRIVATE_KEY: z.string(),
     FIREBASE_STORAGE_BUCKET: z.string(),
-
-    // --- BASE DE DATOS HÍBRIDA ---
     DB_USER: z.string(),
     DB_PASSWORD: z.string(),
     DB_NAME: z.string(),
@@ -27,10 +21,14 @@ const envVarsSchema = z.object({
 const { data, error } = envVarsSchema.safeParse(process.env);
 
 if (error) {
-    console.error('❌ Error CRÍTICO: Variables de entorno inválidas o faltantes en ms-multimedia.');
-    // Muestra exactamente qué variable falló
     console.error(error.format());
-    throw new Error('Variables de entorno inválidas');
+    process.exit(1);
 }
 
-export const envs = data;
+const isDocker = process.env.DB_HOST === 'db-fococero';
+
+export const envs = {
+    ...data,
+    DB_HOST: isDocker ? data.DB_HOST : data.DB_HOST_LOCAL,
+    DB_PORT: isDocker ? data.DB_PORT : data.DB_PORT_LOCAL,
+};

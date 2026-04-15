@@ -6,6 +6,7 @@ import { alertasPaths, alertasSchemas } from "./alertas.swagger";
 import { reportesPaths, reportesSchemas } from "./reportes.swagger";
 import { multimediaPaths, multimediaSchemas } from "./multimedia.swagger";
 import { emergenciasPaths, emergenciasSchemas } from "./emergencias.swagger";
+import { analiticaPaths, analiticaSchemas } from "./analitica.swagger"; // 🚀 Nuevo
 
 export const swaggerDocument = {
   openapi: "3.0.0",
@@ -47,6 +48,7 @@ export const swaggerDocument = {
       ...reportesSchemas,
       ...multimediaSchemas,
       ...emergenciasSchemas,
+      ...analiticaSchemas,
     },
   },
   tags: [
@@ -78,6 +80,10 @@ export const swaggerDocument = {
       description:
         "Orquestación crítica: Despacho a Bomberos, CONAF, SAMU y Carabineros.",
     },
+    {
+      name: "Analítica (ms-analitica)",
+      description: "Motor de BI, Predicción de incidentes y Análisis Espacial.",
+    },
   ],
   paths: {
     ...authPaths,
@@ -86,5 +92,6 @@ export const swaggerDocument = {
     ...reportesPaths,
     ...multimediaPaths,
     ...emergenciasPaths,
+    ...analiticaPaths,
   },
 };

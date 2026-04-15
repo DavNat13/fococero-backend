@@ -12,8 +12,7 @@ services:
       POSTGRES_USER: fococero_admin
       POSTGRES_PASSWORD: foco0-1234
       POSTGRES_DB: fococero_default_db
-      # Lista maestra de bases de datos para el script
-      POSTGRES_MULTIPLE_DATABASES: auth_db,geo_db,alertas_db,reportes_db,multimedia_db,emergencias_db
+      POSTGRES_MULTIPLE_DATABASES: auth_db,geo_db,alertas_db,reportes_db,multimedia_db,emergencias_db,analitica_db
     ports:
       - "5433:5432"
     volumes:
@@ -26,6 +25,7 @@ services:
       - ./ms-reportes/database/init.sql:/docker-entrypoint-initdb.d/04-init-reportes.sql
       - ./ms-multimedia/database/init.sql:/docker-entrypoint-initdb.d/05-init-multimedia.sql
       - ./ms-emergencias/database/init.sql:/docker-entrypoint-initdb.d/06-init-emergencias.sql
+      - ./ms-analitica/database/init.sql:/docker-entrypoint-initdb.d/07-init-analitica.sql
     networks:
       - fococero-network
     healthcheck:
@@ -47,15 +47,30 @@ services:
         condition: service_healthy
     networks:
       - fococero-network
+  # ==========================================
+  # 🧠 CACHÉ Y BLOQUEOS (REDIS)
+  # ==========================================
+  redis-fococero:
+    image: redis:7-alpine
+    container_name: fococero-redis
+    expose:
+      - "6379"
+    networks:
+      - fococero-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # ==========================================
-  # 🚦 API GATEWAY (Punto de Entrada Único)
+  # 🚦 API GATEWAY
   # ==========================================
   api-gateway:
     build: ./api-gateway
     container_name: fococero-gateway
     ports:
-      - "3000:3000" # 🌍 ÚNICO PUERTO EXPUESTO AL FRONTEND
+      - "3000:3000"
     env_file: ./api-gateway/.env
     depends_on:
       - ms-auth
@@ -63,6 +78,7 @@ services:
       - ms-alertas
       - ms-reportes
       - ms-multimedia
+      - ms-analitica
     networks:
       - fococero-network
 
@@ -77,6 +93,20 @@ services:
     env_file: ./ms-auth/.env
     depends_on:
       db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+
+  ms-analitica:
+    build: ./ms-analitica
+    container_name: ms-analitica
+    expose:
+      - "3007"
+    env_file: ./ms-analitica/.env
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+      redis-fococero:
         condition: service_healthy
     networks:
       - fococero-network

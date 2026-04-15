@@ -15,7 +15,8 @@ const envSchema = z.object({
   ALERTAS_SERVICE_URL: z.string().url(),
   REPORTES_SERVICE_URL: z.string().url(),
   MULTIMEDIA_SERVICE_URL: z.string().url(),
-  EMERGENCIAS_SERVICE_URL: z.string().url(),  
+  EMERGENCIAS_SERVICE_URL: z.string().url(),
+  ANALITICA_SERVICE_URL: z.string().url(), 
 
   INTERNAL_SECRET_TOKEN: z.string().min(1),
 
@@ -30,7 +31,7 @@ const envSchema = z.object({
   FIREBASE_PRIVATE_KEY: z
     .string()
     .min(1)
-    .transform((val) => val.replace(/\\n/g, "\n").replace(/"/g, "").trim()), // Limpieza automática de la llave
+    .transform((val) => val.replace(/\\n/g, "\n").replace(/"/g, "").trim()),
 });
 
 const _env = envSchema.safeParse(process.env);
