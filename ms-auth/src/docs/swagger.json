@@ -1,0 +1,215 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "API FocoCero - Auth",
+    "version": "1.0.0",
+    "description": "Microservicio de Autenticación y Gestión de Identidad para FocoCero."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001",
+      "description": "Servidor de Desarrollo"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Ingresa el token generado por Google Firebase"
+      }
+    }
+  },
+  "tags": [
+    { "name": "Público", "description": "Rutas de registro sin token" },
+    { "name": "Mi Perfil", "description": "Gestión del usuario logueado" },
+    { "name": "Admin", "description": "Panel de control administrativo (Requiere rol ADMIN)" }
+  ],
+  "paths": {
+    "/api/auth/register-guest": {
+      "post": {
+        "summary": "Registro rápido (Invitado)",
+        "tags": ["Público"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rut": { "type": "string", "example": "19.123.456-K" },
+                  "nombre": { "type": "string", "example": "Juan" },
+                  "apellido": { "type": "string", "example": "Pérez" },
+                  "telefono": { "type": "string", "example": "987654321" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Creado exitosamente" },
+          "400": { "description": "Error de validación" }
+        }
+      }
+    },
+    "/api/auth/register-full": {
+      "post": {
+        "summary": "Registro completo con Firebase",
+        "tags": ["Público"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rut": { "type": "string", "example": "19.123.456-K" },
+                  "nombre": { "type": "string", "example": "Ana" },
+                  "apellido": { "type": "string", "example": "Gómez" },
+                  "telefono": { "type": "string", "example": "912345678" },
+                  "token": { "type": "string", "example": "eyJhbGciOiJSUzI1NiIs..." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Cuenta creada" }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "Obtener mi perfil",
+        "tags": ["Mi Perfil"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Perfil recuperado" },
+          "401": { "description": "No autorizado (Token inválido)" }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar mi perfil",
+        "tags": ["Mi Perfil"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": { "type": "string", "example": "Pedro" },
+                  "telefono": { "type": "string", "example": "999888777" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Perfil actualizado" }
+        }
+      }
+    },
+    "/api/auth/me/fcm-token": {
+      "patch": {
+        "summary": "Sincronizar token de notificaciones push",
+        "tags": ["Mi Perfil"],
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fcm_token": { "type": "string", "example": "fcm_device_token_abc123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Canal sincronizado" }
+        }
+      }
+    },
+    "/api/auth/users": {
+      "get": {
+        "summary": "Listar todos los usuarios",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Lista de usuarios" },
+          "403": { "description": "Acceso denegado (No es Admin)" }
+        }
+      }
+    },
+    "/api/auth/users/{id}/role": {
+      "patch": {
+        "summary": "Cambiar rol de usuario",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "rol": { "type": "string", "example": "brigadista" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Rol actualizado" }
+        }
+      }
+    },
+    "/api/auth/users/{id}/status": {
+      "patch": {
+        "summary": "Cambiar estado de usuario (Banear/Activar)",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "estado": { "type": "string", "example": "bloqueado" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Estado modificado" }
+        }
+      }
+    },
+    "/api/auth/users/{id}": {
+      "delete": {
+        "summary": "Eliminar usuario definitivamente",
+        "tags": ["Admin"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Usuario eliminado" }
+        }
+      }
+    }
+  }
+}

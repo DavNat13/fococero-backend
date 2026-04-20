@@ -1,0 +1,58 @@
+name: CI/CD Pipeline - ms-analitica
+
+on:
+  push:
+    branches: ["main", "develop", "feature/*"]
+    paths:
+      - "ms-analitica/**"
+  pull_request:
+    branches: ["main", "develop"]
+    paths:
+      - "ms-analitica/**"
+
+env:
+  # Garantiza compatibilidad con las acciones de Node en entornos recientes
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./ms-analitica
+
+    steps:
+      - name: 📥 Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "./ms-analitica/package-lock.json"
+
+      - name: 📦 Instalar dependencias
+        run: npm ci
+
+      - name: 🔍 Ejecutar Linter
+        run: npm run lint --if-present
+
+      - name: 🧪 Ejecutar Pruebas Unitarias (Jest)
+        run: npm run test --if-present
+        env:
+          NODE_ENV: test
+          PORT: 3007
+          DB_HOST: localhost
+          DB_PORT: 5433
+          DB_USER: test_user
+          DB_PASSWORD: test_password
+          DB_NAME: analitica_db
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          INTERNAL_SECRET_TOKEN: mock-secret-token-for-ci
+
+      - name: 🏗️ Compilar Proyecto (Build)
+        run: npm run build

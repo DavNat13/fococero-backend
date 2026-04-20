@@ -1,31 +1,184 @@
-version: '3.8'
+# Docker Compose FocoCero - Arquitectura Final con API Gateway
+version: "3.8"
 
 services:
+  # ==========================================
+  # 🗄️ BASE DE DATOS (POSTGRESQL + POSTGIS)
+  # ==========================================
   db-fococero:
     image: postgis/postgis:15-3.3
     container_name: fococero-db
     environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: fococero_admin
+      POSTGRES_PASSWORD: foco0-1234
+      POSTGRES_DB: fococero_default_db
+      POSTGRES_MULTIPLE_DATABASES: auth_db,geo_db,alertas_db,reportes_db,multimedia_db,emergencias_db,analitica_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - fococero_pgdata:/var/lib/postgresql/data
-    restart: always
+      # Inyectamos el script de creación múltiple
+      - ./init-multiple-databases.sh:/docker-entrypoint-initdb.d/00-init-databases.sh
+      - ./ms-auth/init.sql:/docker-entrypoint-initdb.d/01-init-auth.sql
+      - ./ms-geo/database/init.sql:/docker-entrypoint-initdb.d/02-init-geo.sql
+      - ./ms-alertas/database/init.sql:/docker-entrypoint-initdb.d/03-init-alertas.sql
+      - ./ms-reportes/database/init.sql:/docker-entrypoint-initdb.d/04-init-reportes.sql
+      - ./ms-multimedia/database/init.sql:/docker-entrypoint-initdb.d/05-init-multimedia.sql
+      - ./ms-emergencias/database/init.sql:/docker-entrypoint-initdb.d/06-init-emergencias.sql
+      - ./ms-analitica/database/init.sql:/docker-entrypoint-initdb.d/07-init-analitica.sql
+    networks:
+      - fococero-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fococero_admin -d fococero_default_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   pgadmin:
     image: dpage/pgadmin4
     container_name: fococero-pgadmin
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASS}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
     ports:
       - "5050:80"
     depends_on:
-      - db-fococero
-    restart: always
+      db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+  # ==========================================
+  # 🧠 CACHÉ Y BLOQUEOS (REDIS)
+  # ==========================================
+  redis-fococero:
+    image: redis:7-alpine
+    container_name: fococero-redis
+    expose:
+      - "6379"
+    networks:
+      - fococero-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
+  # ==========================================
+  # 🚦 API GATEWAY
+  # ==========================================
+  api-gateway:
+    build: ./api-gateway
+    container_name: fococero-gateway
+    ports:
+      - "3000:3000"
+    env_file: ./api-gateway/.env
+    depends_on:
+      - ms-auth
+      - ms-geo
+      - ms-alertas
+      - ms-reportes
+      - ms-multimedia
+      - ms-analitica
+    networks:
+      - fococero-network
+
+  # ==========================================
+  # 🧱 MICROSERVICIOS (Red Interna Privada)
+  # ==========================================
+  ms-auth:
+    build: ./ms-auth
+    container_name: ms-auth
+    expose:
+      - "3001"
+    env_file: ./ms-auth/.env
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+
+  ms-analitica:
+    build: ./ms-analitica
+    container_name: ms-analitica
+    expose:
+      - "3007"
+    env_file: ./ms-analitica/.env
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+      redis-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+
+  ms-geo:
+    build: ./ms-geo
+    container_name: ms-geo
+    expose:
+      - "3002"
+    env_file: ./ms-geo/.env
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+
+  ms-alertas:
+    build: ./ms-alertas
+    container_name: ms-alertas
+    expose:
+      - "3003"
+    env_file: ./ms-alertas/.env
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+
+  ms-reportes:
+    build: ./ms-reportes
+    container_name: ms-reportes
+    expose:
+      - "3004"
+    env_file: ./ms-reportes/.env
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+
+  ms-multimedia:
+    build: ./ms-multimedia
+    container_name: ms-multimedia
+    expose:
+      - "3005"
+    env_file: ./ms-multimedia/.env
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+
+  ms-emergencias:
+    build: ./ms-emergencias
+    container_name: ms-emergencias
+    expose:
+      - "3006"
+    env_file: ./ms-emergencias/.env
+    depends_on:
+      db-fococero:
+        condition: service_healthy
+    networks:
+      - fococero-network
+
+# ==========================================
+# 💾 VOLUMEN Y RED
+# ==========================================
 volumes:
   fococero_pgdata:
     name: fococero_pgdata
+
+networks:
+  fococero-network:
+    name: fococero-network
+    driver: bridge
