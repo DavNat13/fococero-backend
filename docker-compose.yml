@@ -1,4 +1,4 @@
-# Docker Compose FocoCero - Arquitectura Final con API Gateway
+# Docker Compose FocoCero - Arquitectura Final Unificada
 version: "3.8"
 
 services:
@@ -47,6 +47,7 @@ services:
         condition: service_healthy
     networks:
       - fococero-network
+
   # ==========================================
   # 🧠 CACHÉ Y BLOQUEOS (REDIS)
   # ==========================================
@@ -64,21 +65,49 @@ services:
       retries: 5
 
   # ==========================================
+  # 🌐 SERVICE DISCOVERY (NETFLIX EUREKA)
+  # ==========================================
+  eureka-server:
+    image: steeltoeoss/eureka-server:latest
+    container_name: fococero-eureka
+    ports:
+      - "8761:8761"
+    environment:
+      - EUREKA_CLIENT_REGISTERWITHEUREKA=false
+      - EUREKA_CLIENT_FETCHREGISTRY=false
+    networks:
+      - fococero-network
+
+  # ==========================================
   # 🚦 API GATEWAY
   # ==========================================
   api-gateway:
     build: ./api-gateway
-    container_name: fococero-gateway
+    container_name: api-gateway
     ports:
       - "3000:3000"
     env_file: ./api-gateway/.env
+    environment:
+      - EUREKA_HOST=eureka-server
+      - AUTH_SERVICE_URL=http://ms-auth:3001
+      - GEO_SERVICE_URL=http://ms-geo:3002
+      - ALERTAS_SERVICE_URL=http://ms-alertas:3003
+      - REPORTES_SERVICE_URL=http://ms-reportes:3004
+      - MULTIMEDIA_SERVICE_URL=http://ms-multimedia:3005
+      - EMERGENCIAS_SERVICE_URL=http://ms-emergencias:3006
+      - ANALITICA_SERVICE_URL=http://ms-analitica:3007
+      - INTERNAL_SECRET_TOKEN=SuperSecretFococeroToken2026
     depends_on:
-      - ms-auth
-      - ms-geo
-      - ms-alertas
-      - ms-reportes
-      - ms-multimedia
-      - ms-analitica
+      eureka-server:
+        condition: service_started
+      ms-auth:
+        condition: service_started
+      ms-geo:
+        condition: service_started
+      ms-alertas:
+        condition: service_started
+      ms-reportes:
+        condition: service_started
     networks:
       - fococero-network
 
@@ -91,9 +120,13 @@ services:
     expose:
       - "3001"
     env_file: ./ms-auth/.env
+    environment:
+      - EUREKA_HOST=eureka-server
     depends_on:
       db-fococero:
         condition: service_healthy
+      eureka-server:
+        condition: service_started
     networks:
       - fococero-network
 
@@ -117,9 +150,13 @@ services:
     expose:
       - "3002"
     env_file: ./ms-geo/.env
+    environment:
+      - EUREKA_HOST=eureka-server
     depends_on:
       db-fococero:
         condition: service_healthy
+      eureka-server:
+        condition: service_started
     networks:
       - fococero-network
 
@@ -129,9 +166,14 @@ services:
     expose:
       - "3003"
     env_file: ./ms-alertas/.env
+    environment:
+      - EUREKA_HOST=eureka-server
+      - MULTIMEDIA_SERVICE_URL=http://ms-multimedia:3005
     depends_on:
       db-fococero:
         condition: service_healthy
+      eureka-server:
+        condition: service_started
     networks:
       - fococero-network
 
@@ -141,9 +183,14 @@ services:
     expose:
       - "3004"
     env_file: ./ms-reportes/.env
+    environment:
+      - EUREKA_HOST=eureka-server
+      - MULTIMEDIA_SERVICE_URL=http://ms-multimedia:3005
     depends_on:
       db-fococero:
         condition: service_healthy
+      eureka-server:
+        condition: service_started
     networks:
       - fococero-network
 

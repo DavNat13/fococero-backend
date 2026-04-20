@@ -3,13 +3,15 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import morgan from 'morgan';
-import swaggerUi from 'swagger-ui-express'; // <-- NUEVO: Interfaz de Swagger
-import swaggerDocument from './docs/swagger.json'; // <-- NUEVO: Nuestro documento JSON
+import swaggerUi from 'swagger-ui-express'; 
+import swaggerDocument from './docs/swagger.json'; 
 import { envs } from './config/envs';
 import './config/firebase';
 import { pool } from './config/database';
 import authRoutes from './routes/auth.routes';
 import { errorHandler } from './middlewares/error.middleware';
+
+import { initEurekaClient } from './config/eureka.client';
 
 const app: Application = express();
 
@@ -43,7 +45,10 @@ app.use(errorHandler);
 // --- 🚀 INICIO DE SERVIDOR ---
 const server = app.listen(envs.PORT, () => {
     console.log(`🚀 FocoCero Auth blindado y rodando en el puerto ${envs.PORT}`);
+    console.log(`📡 Puerto: ${envs.PORT} | DB: PostgreSQL Conectada`);
     console.log(`📖 Documentación disponible en: http://localhost:${envs.PORT}/api/docs`);
+
+    initEurekaClient('ms-auth', envs.PORT);
 });
 
 // --- 🛑 APAGADO ELEGANTE (GRACEFUL SHUTDOWN) ---
