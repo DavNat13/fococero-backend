@@ -1,0 +1,64 @@
+name: CI/CD Pipeline - ms-emergencias
+
+on:
+  push:
+    branches: ["main", "develop", "feature/*"]
+    paths:
+      - "ms-emergencias/**"
+  pull_request:
+    branches: ["main", "develop"]
+    paths:
+      - "ms-emergencias/**"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./ms-emergencias
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: "./ms-emergencias/package-lock.json"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Linter (If configured)
+        run: npm run lint --if-present
+
+      - name: Run Tests (If configured)
+        run: npm run test --if-present
+        env:
+          NODE_ENV: test
+          PORT: 3006
+          DB_USER: test_user
+          DB_PASSWORD: test_password
+          DB_NAME: test_db
+          DB_HOST_LOCAL: localhost
+          DB_PORT_LOCAL: 5432
+
+          INTERNAL_SECRET_TOKEN: mock-test-token
+          API_GATEWAY_URL: http://mock-gateway:3000
+
+          BOMBEROS_API_URL: https://mock.bomberos.cl
+          BOMBEROS_API_KEY: mock-api-key
+          CONAF_API_URL: https://mock.conaf.cl
+          CONAF_API_KEY: mock-conaf-key
+          CARABINEROS_API_URL: https://mock.carabineros.cl
+          CARABINEROS_API_KEY: mock-carabineros-key
+          SENAPRED_API_URL: https://mock.senapred.cl
+          SENAPRED_API_KEY: mock-senapred-key+
+
+      - name: Build Project
+        run: npm run build
