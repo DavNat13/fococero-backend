@@ -1,0 +1,43 @@
+# Dependencias locales (Se instalan dentro del contenedor)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Artefactos de construcción locales
+dist
+build
+.tscache
+
+# Archivos de entorno y secretos (Seguridad)
+.env
+.env.*
+!.env.example
+firebase-key.json
+
+# Control de Versiones
+.git
+.gitignore
+.gitattributes
+
+# Pruebas (No se necesitan en la imagen de producción)
+tests
+coverage
+jest.config.*
+*.spec.ts
+*.test.ts
+
+# Configuración del Editor / IDE
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Docker (No son necesarios dentro de la imagen)
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentación (Opcional, si quieres una imagen mínima)
+README.md
+docs

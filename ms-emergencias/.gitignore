@@ -1,0 +1,56 @@
+# ==========================================
+# 📦 DEPENDENCIAS
+# ==========================================
+node_modules/
+
+# ==========================================
+# 🏗️ COMPILACIÓN Y CACHÉ
+# ==========================================
+dist/
+build/
+.tsbuildinfo
+tsconfig.tsbuildinfo
+.eslintcache
+
+# ==========================================
+# 🔒 SECRETOS Y VARIABLES DE ENTORNO
+# ==========================================
+.env
+.env.*
+!.env.example
+
+# Blindaje extra: Nunca subir llaves maestras descargadas de GCP/Firebase
+*-firebase-adminsdk-*.json
+gcp-*.json
+firebase-key.json
+
+# ==========================================
+# 🧪 TESTING Y COBERTURA (JEST)
+# ==========================================
+coverage/
+.nyc_output/
+
+# ==========================================
+# 📝 LOGS
+# ==========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==========================================
+# 💻 ARCHIVOS DE SISTEMA Y EDITORES
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

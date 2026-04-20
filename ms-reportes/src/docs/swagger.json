@@ -1,0 +1,251 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "API FocoCero - MS-Reportes",
+        "description": "Microservicio para la gestión, creación y auditoría de reportes de incidentes ciudadanos. Incluye soporte geoespacial (PostGIS) y trazabilidad de estados.",
+        "version": "1.3.0",
+        "contact": {
+            "name": "Equipo de Arquitectura FocoCero"
+        }
+    },
+    "servers": [
+        {
+            "url": "http://localhost:3004",
+            "description": "Servidor de Desarrollo / Localhost"
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Token generado por Firebase Auth."
+            }
+        },
+        "schemas": {
+            "CategoriaDTO": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "nombre": { "type": "string", "example": "Incendio Forestal" },
+                    "nivel_prioridad": { "type": "integer", "example": 3 },
+                    "activo": { "type": "boolean", "example": true }
+                }
+            },
+            "CrearReporteDTO": {
+                "type": "object",
+                "required": ["categoria_id", "titulo", "descripcion", "latitud", "longitud"],
+                "properties": {
+                    "categoria_id": { "type": "string", "format": "uuid" },
+                    "titulo": { "type": "string", "example": "Foco de basura quemándose" },
+                    "descripcion": {
+                        "type": "string",
+                        "example": "Hay humo negro cruzando la calle."
+                    },
+                    "latitud": { "type": "number", "example": -33.456 },
+                    "longitud": { "type": "number", "example": -70.648 },
+                    "metadata": { "type": "object", "additionalProperties": true }
+                }
+            },
+            "ActualizarReporteDTO": {
+                "type": "object",
+                "description": "Campos opcionales para actualización parcial.",
+                "properties": {
+                    "titulo": { "type": "string", "example": "Título editado" },
+                    "descripcion": {
+                        "type": "string",
+                        "example": "Descripción editada con más detalle."
+                    },
+                    "metadata": { "type": "object", "additionalProperties": true }
+                }
+            },
+            "HistorialEstadoDTO": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "estado_anterior": { "type": "string" },
+                    "estado_nuevo": { "type": "string" },
+                    "id_usuario_modificador": { "type": "string" },
+                    "comentarios": { "type": "string" },
+                    "created_at": { "type": "string", "format": "date-time" }
+                }
+            }
+        }
+    },
+    "security": [{ "BearerAuth": [] }],
+    "tags": [
+        {
+            "name": "Zona Ciudadana",
+            "description": "Endpoints para usuarios y gestión de sus propios reportes"
+        },
+        {
+            "name": "Zona Operativa",
+            "description": "Gestión de emergencias y auditoría (ADMIN y BRIGADISTA)"
+        }
+    ],
+    "paths": {
+        "/api/reportes/categorias": {
+            "get": {
+                "summary": "Listar categorías de incidentes",
+                "tags": ["Zona Ciudadana"],
+                "responses": { "200": { "description": "Lista de categorías" } }
+            }
+        },
+        "/api/reportes": {
+            "get": {
+                "summary": "Listar todos los reportes (con filtros)",
+                "tags": ["Zona Ciudadana"],
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": { "type": "integer", "default": 10 }
+                    },
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "schema": { "type": "integer", "default": 0 }
+                    },
+                    {
+                        "name": "estado",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "enum": ["PENDIENTE", "EN_PROCESO", "RESUELTO", "FALSA_ALARMA"]
+                        }
+                    }
+                ],
+                "responses": { "200": { "description": "Listado obtenido" } }
+            },
+            "post": {
+                "summary": "Crear un nuevo reporte",
+                "tags": ["Zona Ciudadana"],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": { "$ref": "#/components/schemas/CrearReporteDTO" }
+                        }
+                    }
+                },
+                "responses": { "201": { "description": "Creado" } }
+            }
+        },
+        "/api/reportes/me": {
+            "get": {
+                "summary": "Obtener mis reportes",
+                "tags": ["Zona Ciudadana"],
+                "responses": { "200": { "description": "Lista personal" } }
+            }
+        },
+        "/api/reportes/{id}": {
+            "get": {
+                "summary": "Obtener reporte por ID",
+                "tags": ["Zona Ciudadana"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "responses": {
+                    "200": { "description": "Detalle del reporte" },
+                    "404": { "description": "No encontrado" }
+                }
+            },
+            "patch": {
+                "summary": "Actualizar reporte",
+                "description": "Permite editar un reporte propio si aún está en estado PENDIENTE.",
+                "tags": ["Zona Ciudadana"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": { "$ref": "#/components/schemas/ActualizarReporteDTO" }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": { "description": "Actualizado" },
+                    "403": { "description": "No autorizado para editar" }
+                }
+            },
+            "delete": {
+                "summary": "Eliminar reporte",
+                "tags": ["Zona Ciudadana"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "responses": { "200": { "description": "Eliminado" } }
+            }
+        },
+        "/api/reportes/{id}/historial": {
+            "get": {
+                "summary": "Ver auditoría de estados",
+                "tags": ["Zona Operativa"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "responses": { "200": { "description": "Historial obtenido" } }
+            }
+        },
+        "/api/reportes/{id}/estado": {
+            "patch": {
+                "summary": "Cambiar estado operativo",
+                "tags": ["Zona Operativa"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["nuevoEstado"],
+                                "properties": {
+                                    "nuevoEstado": {
+                                        "type": "string",
+                                        "enum": [
+                                            "PENDIENTE",
+                                            "EN_PROCESO",
+                                            "RESUELTO",
+                                            "FALSA_ALARMA"
+                                        ]
+                                    },
+                                    "comentarios": { "type": "string" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": { "200": { "description": "Estado actualizado" } }
+            }
+        }
+    }
+}

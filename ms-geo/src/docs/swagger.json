@@ -1,0 +1,207 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "API FocoCero - Inteligencia Geoespacial",
+        "version": "1.1.0",
+        "description": "Microservicio (ms-geo) responsable de la ingesta de coordenadas, cálculos de radar, gestión de perímetros WKT y trazabilidad operativa de incendios."
+    },
+    "servers": [
+        {
+            "url": "http://localhost:3002",
+            "description": "Servidor de Desarrollo (ms-geo)"
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Token JWT de Firebase para autenticar brigadistas y administradores."
+            }
+        },
+        "schemas": {
+            "ErrorResponse": {
+                "type": "object",
+                "properties": {
+                    "ok": { "type": "boolean", "example": false },
+                    "error": { "type": "string" },
+                    "detalles": { "type": "array", "items": { "type": "object" } }
+                }
+            },
+            "FocoIncendio": {
+                "type": "object",
+                "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "reporte_id": { "type": "string" },
+                    "tipo_incidente": { "type": "string" },
+                    "severidad": {
+                        "type": "string",
+                        "enum": ["Baja", "Moderada", "Alta", "Crítica"]
+                    },
+                    "estado": {
+                        "type": "string",
+                        "enum": [
+                            "Reportado",
+                            "En Evaluación",
+                            "En Combate",
+                            "Controlado",
+                            "Extinguido",
+                            "Falsa Alarma"
+                        ]
+                    },
+                    "latitud": { "type": "number" },
+                    "longitud": { "type": "number" },
+                    "perimetro_wkt": { "type": "string", "nullable": true },
+                    "viento_velocidad_kmh": { "type": "number" },
+                    "amenaza_viviendas": { "type": "boolean" }
+                }
+            }
+        }
+    },
+    "tags": [
+        { "name": "Zona Ciudadana", "description": "Endpoints públicos (No requieren Token)" },
+        {
+            "name": "Zona Operativa",
+            "description": "Gestión táctica de la emergencia (Requiere Token)"
+        }
+    ],
+    "paths": {
+        "/api/geo": {
+            "get": {
+                "summary": "Listar todos los focos activos",
+                "tags": ["Zona Ciudadana"],
+                "responses": { "200": { "description": "Mapa global obtenido" } }
+            },
+            "post": {
+                "summary": "Reportar un nuevo incendio",
+                "tags": ["Zona Ciudadana"],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["latitud", "longitud", "tipo_incidente"],
+                                "properties": {
+                                    "latitud": { "type": "number" },
+                                    "longitud": { "type": "number" },
+                                    "tipo_incidente": { "type": "string" }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": { "201": { "description": "Geolocalizado" } }
+            }
+        },
+        "/api/geo/cercanos": {
+            "get": {
+                "summary": "Radar de cercanía",
+                "tags": ["Zona Ciudadana"],
+                "parameters": [
+                    {
+                        "name": "lat",
+                        "in": "query",
+                        "required": true,
+                        "schema": { "type": "number" }
+                    },
+                    {
+                        "name": "lng",
+                        "in": "query",
+                        "required": true,
+                        "schema": { "type": "number" }
+                    },
+                    {
+                        "name": "radio",
+                        "in": "query",
+                        "required": true,
+                        "schema": { "type": "integer" },
+                        "description": "Radio en metros"
+                    }
+                ],
+                "responses": { "200": { "description": "Focos en el área" } }
+            }
+        },
+        "/api/geo/{id}": {
+            "get": {
+                "summary": "Detalle por ID",
+                "tags": ["Zona Ciudadana"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "responses": { "200": { "description": "Foco encontrado" } }
+            },
+            "put": {
+                "summary": "Actualización integral",
+                "tags": ["Zona Operativa"],
+                "security": [{ "BearerAuth": [] }],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "responses": {
+                    "200": { "description": "Variables actualizadas y severidad recalculada" }
+                }
+            },
+            "delete": {
+                "summary": "Eliminar (Soft Delete)",
+                "tags": ["Zona Operativa"],
+                "security": [{ "BearerAuth": [] }],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": { "type": "string", "format": "uuid" }
+                    }
+                ],
+                "responses": { "200": { "description": "Removido del sistema" } }
+            }
+        },
+        "/api/geo/{id}/estado": {
+            "patch": {
+                "summary": "Cambiar flujo operativo",
+                "tags": ["Zona Operativa"],
+                "security": [{ "BearerAuth": [] }],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": { "estado": { "type": "string" } }
+                            }
+                        }
+                    }
+                },
+                "responses": { "200": { "description": "Estado actualizado" } }
+            }
+        },
+        "/api/geo/{id}/perimetro": {
+            "patch": {
+                "summary": "Actualizar trazado WKT",
+                "tags": ["Zona Operativa"],
+                "security": [{ "BearerAuth": [] }],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": { "area_quemada_wkt": { "type": "string" } }
+                            }
+                        }
+                    }
+                },
+                "responses": { "200": { "description": "Polígono registrado en PostGIS" } }
+            }
+        }
+    }
+}
