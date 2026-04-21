@@ -18,6 +18,8 @@ import './config/firebase';
 import reporteRoutes from './routes/reporte.routes';
 import { errorHandler } from './middlewares/error.middleware';
 
+import { initEurekaClient } from './config/eureka.client.js';
+
 const app: Application = express();
 
 app.set('trust proxy', 1);
@@ -98,6 +100,9 @@ const server = app.listen(envs.PORT, async () => {
     console.log(`🛡️  Seguridad: Limitador y Escudos Activos`);
     console.log(`📖 Documentación: http://localhost:${envs.PORT}/api/docs`);
     console.log(`====================================================\n`);
+
+    initEurekaClient('ms-reportes', Number(envs.PORT));
+    
 });
 
 // 🛑 6. APAGADO ELEGANTE (GRACEFUL SHUTDOWN)
