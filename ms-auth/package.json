@@ -1,8 +1,13 @@
 {
-  "name": "fococero-ms-auth",
+  "name": "ms-auth",
   "version": "1.0.0",
   "description": "Microservicio de Autenticación - FocoCero",
+  "author": "FocoCero Team",
+  "license": "ISC",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
@@ -15,6 +20,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "env-var": "^7.5.0",
+    "eureka-js-client": "^4.5.0",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.1",
     "firebase-admin": "^13.7.0",
@@ -27,6 +33,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.19",
+    "@types/eureka-js-client": "^4.5.9",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/morgan": "^1.9.10",
