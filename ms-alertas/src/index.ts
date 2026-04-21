@@ -18,6 +18,8 @@ import './config/firebase'; // Inicializa Firebase Admin automáticamente
 import alertasRoutes from './routes/alerta.routes';
 import { errorHandler } from './middlewares/error.middleware';
 
+import { initEurekaClient } from './config/eureka.client.js';
+
 const app: Application = express();
 
 // Confía en el proxy (vital si luego usas Docker Swarm, Nginx o Kubernetes)
@@ -90,6 +92,7 @@ const server = app.listen(PORT, async () => {
     console.log(`🛡️  Seguridad: Limitador y Escudos Activos`);
     console.log(`📖 Documentación: http://localhost:${PORT}/api/docs`);
     console.log(`====================================================\n`);
+    initEurekaClient('ms-alertas', PORT as number);
 });
 
 // ============================================================================

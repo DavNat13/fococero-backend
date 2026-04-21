@@ -16,6 +16,9 @@ import { errorHandler } from "./middlewares/errorHandler";
 import { appRoutes } from "./routes/routes";
 import { swaggerDocument } from "./docs/swagger";
 
+// --- Adaptador de Eureka ---
+import { initEurekaClient } from "./config/eureka.client";
+
 const app: Application = express();
 
 /**
@@ -61,6 +64,8 @@ const server = app.listen(envs.PORT, () => {
     `📖 Documentación unificada: http://localhost:${envs.PORT}/api/docs`,
   );
   console.log(`====================================================\n`);
+
+  initEurekaClient("api-gateway", envs.PORT);
 });
 
 const shutdown = (signal: string) => {

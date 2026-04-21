@@ -14,6 +14,8 @@ import geoRoutes from './routes/geo.routes';
 import { errorHandler } from './middlewares/error.middleware';
 import { envs } from './config/envs';   
 
+import { initEurekaClient } from './config/eureka.client';
+
 const app: Application = express();
 
 // Configuración para proxies (Docker/Render/K8s)
@@ -68,6 +70,8 @@ const server = app.listen(PORT, async () => {
     console.log(`🛡️  Seguridad: Limitador y Escudos Activos`);
     console.log(`📖 Docs: http://localhost:${PORT}/api/docs`);
     console.log(`====================================================\n`);
+
+    initEurekaClient('ms-geo', Number(PORT));
 });
 
 // ============================================================================
