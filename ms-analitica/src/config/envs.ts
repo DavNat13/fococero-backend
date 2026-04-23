@@ -8,7 +8,7 @@ export const envs = {
   NODE_ENV: env.get("NODE_ENV").default("development").asString(),
   INTERNAL_SECRET_TOKEN: env.get("INTERNAL_SECRET_TOKEN").required().asString(),
   API_GATEWAY_URL: env.get("API_GATEWAY_URL").required().asString(),
-
+  EUREKA_HOST: env.get("EUREKA_HOST").required().asString(),
   DB_USER: env.get("DB_USER").required().asString(),
   DB_PASSWORD: env.get("DB_PASSWORD").required().asString(),
   DB_NAME: env.get("DB_NAME").required().asString(),

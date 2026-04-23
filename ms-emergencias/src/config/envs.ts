@@ -12,6 +12,7 @@ export const envs = {
     DB_USER: env.get('DB_USER').required().asString(),
     DB_PASSWORD: env.get('DB_PASSWORD').required().asString(),
     DB_NAME: env.get('DB_NAME').required().asString(),
+    EUREKA_HOST: env.get('EUREKA_HOST').required().asString(),
     DB_HOST: isDocker
         ? env.get('DB_HOST').required().asString()
         : env.get('DB_HOST_LOCAL').required().asString(),

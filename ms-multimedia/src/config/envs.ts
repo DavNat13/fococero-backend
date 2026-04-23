@@ -4,6 +4,8 @@ import { z } from 'zod';
 const envVarsSchema = z.object({
     PORT: z.string().transform(Number).default('3005'),
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+    EUREKA_HOST: z.string().min(1),
+    INTERNAL_SECRET_TOKEN: z.string().min(1),
     GATEWAY_URL: z.string().url(),
     FIREBASE_PROJECT_ID: z.string(),
     FIREBASE_CLIENT_EMAIL: z.string().email(),

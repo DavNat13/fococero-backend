@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS dim_tiempo (
     dia SMALLINT NOT NULL,
     dia_semana SMALLINT NOT NULL,
     es_fin_semana BOOLEAN NOT NULL
-) WITH (fillfactor = 100);
+);
 
 CREATE TABLE IF NOT EXISTS fact_incidentes (
     id UUID NOT NULL,
@@ -27,8 +27,7 @@ CREATE TABLE IF NOT EXISTS fact_incidentes (
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id, fecha_ocurrencia)
-) PARTITION BY RANGE (fecha_ocurrencia)
-WITH (fillfactor = 100);
+) PARTITION BY RANGE (fecha_ocurrencia);
 
 ALTER TABLE fact_incidentes ALTER COLUMN metadata SET COMPRESSION lz4;
 

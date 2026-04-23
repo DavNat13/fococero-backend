@@ -6,8 +6,8 @@ export const pool = new Pool({
     user: envs.DB_USER,
     password: envs.DB_PASSWORD,
     database: envs.DB_NAME,
-    host: envs.DB_HOST, // <--- Directo y sin lógica
-    port: envs.DB_PORT, // <--- Directo y sin lógica
+    host: envs.DB_HOST, // 
+    port: envs.DB_PORT, // 
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 3000,

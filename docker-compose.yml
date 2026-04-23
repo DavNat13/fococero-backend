@@ -1,6 +1,3 @@
-# Docker Compose FocoCero - Arquitectura Final Unificada
-version: "3.8"
-
 services:
   # ==========================================
   # 🗄️ BASE DE DATOS (POSTGRESQL + POSTGIS)
@@ -9,15 +6,14 @@ services:
     image: postgis/postgis:15-3.3
     container_name: fococero-db
     environment:
-      POSTGRES_USER: fococero_admin
-      POSTGRES_PASSWORD: foco0-1234
-      POSTGRES_DB: fococero_default_db
-      POSTGRES_MULTIPLE_DATABASES: auth_db,geo_db,alertas_db,reportes_db,multimedia_db,emergencias_db,analitica_db
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_MULTIPLE_DATABASES=${POSTGRES_MULTIPLE_DATABASES}
     ports:
-      - "5433:5432"
+      - "${DB_PORT_EXTERNAL}:5432"
     volumes:
       - fococero_pgdata:/var/lib/postgresql/data
-      # Inyectamos el script de creación múltiple
       - ./init-multiple-databases.sh:/docker-entrypoint-initdb.d/00-init-databases.sh
       - ./ms-auth/init.sql:/docker-entrypoint-initdb.d/01-init-auth.sql
       - ./ms-geo/database/init.sql:/docker-entrypoint-initdb.d/02-init-geo.sql
@@ -65,16 +61,16 @@ services:
       retries: 5
 
   # ==========================================
-  # 🌐 SERVICE DISCOVERY (NETFLIX EUREKA)
+  # 🌐 SERVICE DISCOVERY (EUREKA)
   # ==========================================
   eureka-server:
     image: steeltoeoss/eureka-server:latest
     container_name: fococero-eureka
+    environment:
+      - EUREKA_CLIENT_REGISTERWITHEUREKA=${EUREKA_CLIENT_REGISTERWITHEUREKA}
+      - EUREKA_CLIENT_FETCHREGISTRY=${EUREKA_CLIENT_FETCHREGISTRY}
     ports:
       - "8761:8761"
-    environment:
-      - EUREKA_CLIENT_REGISTERWITHEUREKA=false
-      - EUREKA_CLIENT_FETCHREGISTRY=false
     networks:
       - fococero-network
 
@@ -87,16 +83,6 @@ services:
     ports:
       - "3000:3000"
     env_file: ./api-gateway/.env
-    environment:
-      - EUREKA_HOST=eureka-server
-      - AUTH_SERVICE_URL=http://ms-auth:3001
-      - GEO_SERVICE_URL=http://ms-geo:3002
-      - ALERTAS_SERVICE_URL=http://ms-alertas:3003
-      - REPORTES_SERVICE_URL=http://ms-reportes:3004
-      - MULTIMEDIA_SERVICE_URL=http://ms-multimedia:3005
-      - EMERGENCIAS_SERVICE_URL=http://ms-emergencias:3006
-      - ANALITICA_SERVICE_URL=http://ms-analitica:3007
-      - INTERNAL_SECRET_TOKEN=SuperSecretFococeroToken2026
     depends_on:
       eureka-server:
         condition: service_started
@@ -117,11 +103,10 @@ services:
   ms-auth:
     build: ./ms-auth
     container_name: ms-auth
+    restart: on-failure
     expose:
       - "3001"
     env_file: ./ms-auth/.env
-    environment:
-      - EUREKA_HOST=eureka-server
     depends_on:
       db-fococero:
         condition: service_healthy
@@ -133,6 +118,7 @@ services:
   ms-analitica:
     build: ./ms-analitica
     container_name: ms-analitica
+    restart: on-failure
     expose:
       - "3007"
     env_file: ./ms-analitica/.env
@@ -141,17 +127,18 @@ services:
         condition: service_healthy
       redis-fococero:
         condition: service_healthy
+      eureka-server:
+        condition: service_started
     networks:
       - fococero-network
 
   ms-geo:
     build: ./ms-geo
     container_name: ms-geo
+    restart: on-failure
     expose:
       - "3002"
     env_file: ./ms-geo/.env
-    environment:
-      - EUREKA_HOST=eureka-server
     depends_on:
       db-fococero:
         condition: service_healthy
@@ -163,12 +150,10 @@ services:
   ms-alertas:
     build: ./ms-alertas
     container_name: ms-alertas
+    restart: on-failure
     expose:
       - "3003"
     env_file: ./ms-alertas/.env
-    environment:
-      - EUREKA_HOST=eureka-server
-      - MULTIMEDIA_SERVICE_URL=http://ms-multimedia:3005
     depends_on:
       db-fococero:
         condition: service_healthy
@@ -180,12 +165,10 @@ services:
   ms-reportes:
     build: ./ms-reportes
     container_name: ms-reportes
+    restart: on-failure
     expose:
       - "3004"
     env_file: ./ms-reportes/.env
-    environment:
-      - EUREKA_HOST=eureka-server
-      - MULTIMEDIA_SERVICE_URL=http://ms-multimedia:3005
     depends_on:
       db-fococero:
         condition: service_healthy
@@ -197,24 +180,30 @@ services:
   ms-multimedia:
     build: ./ms-multimedia
     container_name: ms-multimedia
+    restart: on-failure
     expose:
       - "3005"
     env_file: ./ms-multimedia/.env
     depends_on:
       db-fococero:
         condition: service_healthy
+      eureka-server:
+        condition: service_started
     networks:
       - fococero-network
 
   ms-emergencias:
     build: ./ms-emergencias
     container_name: ms-emergencias
+    restart: on-failure
     expose:
       - "3006"
     env_file: ./ms-emergencias/.env
     depends_on:
       db-fococero:
         condition: service_healthy
+      eureka-server:
+        condition: service_started
     networks:
       - fococero-network
 

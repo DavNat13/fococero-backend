@@ -17,6 +17,7 @@ export const envs = {
     DB_HOST: env.get('DB_HOST').required().asString(),
     DB_PORT: env.get('DB_PORT').required().asPortNumber(),
     DB_NAME: env.get('DB_NAME').required().asString(),
+    EUREKA_HOST: env.get('EUREKA_HOST').required().asString(),
 
     // Firebase Admin SDK (Secretos)
     FIREBASE_PROJECT_ID: env.get('FIREBASE_PROJECT_ID').required().asString(),

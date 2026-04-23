@@ -8,6 +8,7 @@ const isDocker = dbHostRaw === 'db-fococero';
 export const envs = {
     PORT: env.get('PORT').default(3004).asPortNumber(),
     NODE_ENV: env.get('NODE_ENV').default('development').asString(),
+    EUREKA_HOST: env.get('EUREKA_HOST').required().asString(),
 
     // Base de Datos
     DB_USER: env.get('DB_USER').required().asString(),

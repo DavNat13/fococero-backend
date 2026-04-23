@@ -1,5 +1,4 @@
 // ms-multimedia/src/index.ts
-
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -7,60 +6,41 @@ import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 
 // ==========================================
-// CONFIGURACIONES E INICIALIZACIONES GLOBALES
+// CONFIGURACIONES E INICIALIZACIONES
 // ==========================================
 import { envs } from './config/envs';
-import './config/db'; // Al importarlo, ejecuta la conexión al Pool de PostgreSQL
-import './config/firebase'; // Al importarlo, inicializa la conexión con Google Cloud
+import './config/db'; 
+import './config/firebase'; 
+import { eurekaClient, initEureka } from './config/eureka';
 
 // ==========================================
-// RUTAS Y DOCUMENTACIÓN
+// RUTAS, DOCS Y CRON
 // ==========================================
 import multimediaRoutes from './routes/multimedia.routes';
 import { swaggerSpec } from './docs/swagger';
-
 import { iniciarBarrendero } from './cron/barrendero';
-
-// ==========================================
-// MIDDLEWARES PERSONALIZADOS
-// ==========================================
 import { errorHandler } from './middlewares/errorHandler';
 
-// Inicializamos la aplicación de Express
 const app: Application = express();
 
-// ==========================================
-// 1. MIDDLEWARES GLOBALES (Seguridad y Logs)
-// ==========================================
-// 🛡️ Helmet oculta información del servidor y bloquea ataques comunes (XSS, Clickjacking)
+// 1. MIDDLEWARES GLOBALES
 app.use(helmet());
-
-// 🌐 CORS permite que el API Gateway o el Frontend puedan comunicarse con nosotros
 app.use(cors());
-
-// 📝 Morgan nos da un log visual en la consola de cada petición (ej. "POST /upload 201 45ms")
 app.use(morgan('dev'));
-
-// 📦 Parseadores básicos para JSON y URL-encoded (Multer se encarga del multipart/form-data)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ==========================================
-// 2. DOCUMENTACIÓN (Swagger UI)
-// ==========================================
+// 2. DOCUMENTACIÓN
 app.use(
     '/api-docs',
     swaggerUi.serve,
     swaggerUi.setup(swaggerSpec, {
         customSiteTitle: 'FocoCero API - Multimedia',
-        customCss: '.swagger-ui .topbar { display: none }', // Oculta la barra verde fea de Swagger
+        customCss: '.swagger-ui .topbar { display: none }',
     }),
 );
 
-// ==========================================
-// 3. RUTAS PRINCIPALES
-// ==========================================
-// Ruta "Healthcheck": Vital para Docker y Kubernetes para saber si el contenedor está vivo
+// 3. RUTAS PRINCIPALES Y HEALTHCHECK
 app.get('/health', (_req, res) => {
     res.status(200).json({
         status: 'OK',
@@ -68,32 +48,68 @@ app.get('/health', (_req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
-
-// Montamos todas nuestras rutas bajo el prefijo estándar de la API
 app.use('/api/v1/multimedia', multimediaRoutes);
 
-// ==========================================
-// 4. RED DE SEGURIDAD (Manejador de Errores)
-// ==========================================
-// ⚠️ IMPORTANTE: Este middleware DEBE ir siempre al final, después de todas las rutas
+// 4. RED DE SEGURIDAD (Siempre al final)
 app.use(errorHandler);
 
-// ==========================================
-// 5. ENCENDIDO DEL SERVIDOR
-// ==========================================
-const startServer = () => {
-    app.listen(envs.PORT, () => {
-        console.log('\n=============================================');
-        console.log(`🚀 [ms-multimedia] Encendido y Operativo!`);
-        console.log(`🌐 Ambiente: ${envs.NODE_ENV.toUpperCase()}`);
-        console.log(`📡 Puerto: ${envs.PORT}`);
-        console.log(`📚 Documentación: http://localhost:${envs.PORT}/api-docs`);
-        console.log('=============================================\n');
+// ============================================================================
+// 🚀 BOOTSTRAP Y CICLO DE VIDA (SENIOR PATTERN)
+// ============================================================================
+async function bootstrap() {
+    try {
+        console.log(`\n====================================================`);
+        console.log(`🎥 INICIANDO MS-MULTIMEDIA (FocoCero Process)`);
+        console.log(`====================================================`);
 
-        // Iniciamos el sistema de limpieza automática (Barrendero)
-        iniciarBarrendero();
-        console.log('=============================================\n');
-    });
-};
+        const server = app.listen(envs.PORT, () => {
+            console.log(`🚀 [SERVER] Escuchando en puerto: ${envs.PORT}`);
+            console.log(`🌐 [ENV] Modo: ${envs.NODE_ENV.toUpperCase()}`);
+            console.log(`📚 [DOCS] http://localhost:${envs.PORT}/api-docs`);
+            
+            // Iniciar procesos en background
+            iniciarBarrendero();
+            console.log(`🧹 [CRON] Sistema Barrendero activado.`);
 
-startServer();
+            // Registro en Service Discovery
+            initEureka();
+        });
+
+        // ============================================================================
+        // 🛑 GRACEFUL SHUTDOWN
+        // ============================================================================
+        const handleShutdown = async (signal: string) => {
+            console.log(`\n⚠️  [${signal}] Señal de apagado recibida. Iniciando Graceful Shutdown...`);
+
+            // 1. Salir de Eureka para no recibir peticiones con archivos a medio subir
+            eurekaClient.stop((eurekaError) => {
+                if (eurekaError) console.error("❌ [EUREKA] Error al desregistrar:", eurekaError);
+                else console.log("✅ [EUREKA] Retirado de la malla de servicios.");
+
+                // 2. Apagar servidor HTTP
+                server.close(() => {
+                    console.log("✅ [SERVER] Servidor HTTP detenido.");
+                    
+                    // Nota: Si en el futuro exportas el pool de ./config/db, ciérralo aquí.
+                    
+                    console.log("👋 [SISTEMA] Apagado completado de forma segura.\n");
+                    process.exit(0);
+                });
+            });
+
+            setTimeout(() => {
+                console.error("🔥 [FATAL] El cierre tardó demasiado. Forzando salida.");
+                process.exit(1);
+            }, 10000);
+        };
+
+        process.on("SIGINT", () => handleShutdown("SIGINT"));
+        process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+
+    } catch (error) {
+        console.error(`\n❌ [FATAL] Error durante el arranque:`, error);
+        process.exit(1);
+    }
+}
+
+bootstrap();

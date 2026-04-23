@@ -16,7 +16,8 @@ const envSchema = z.object({
   REPORTES_SERVICE_URL: z.string().url(),
   MULTIMEDIA_SERVICE_URL: z.string().url(),
   EMERGENCIAS_SERVICE_URL: z.string().url(),
-  ANALITICA_SERVICE_URL: z.string().url(), 
+  ANALITICA_SERVICE_URL: z.string().url(),
+  EUREKA_HOST: z.string().min(1),
 
   INTERNAL_SECRET_TOKEN: z.string().min(1),
 

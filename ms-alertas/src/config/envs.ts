@@ -20,6 +20,7 @@ export const envs = {
     DB_HOST: env.get('DB_HOST').required().asString(),
     DB_PORT: env.get('DB_PORT').required().asPortNumber(),
     DB_NAME: env.get('DB_NAME').required().asString(),
+    EUREKA_HOST: env.get('EUREKA_HOST').required().asString(),
 
     // 🖼️ URL del Microservicio de Multimedia
     MULTIMEDIA_SERVICE_URL: env.get('MULTIMEDIA_SERVICE_URL').required().asString(),
