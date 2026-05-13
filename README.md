@@ -1,324 +1,465 @@
-# FocoCero - Plataforma Inteligente de Gestión de Incendios 🌲🔥
+# FocoCero - Backend
 
-<p align="left">
-  <img src="https://img.shields.io/badge/Estado-En_Desarrollo_(Develop)-orange.svg" alt="Estado del proyecto">
-  <img src="https://img.shields.io/badge/Node.js-v22-green?style=flat&logo=nodedotjs" alt="Node.js version">
-  <img src="https://img.shields.io/badge/TypeScript-v5-blue?style=flat&logo=typescript" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Database-PostgreSQL_%2B_PostGIS-blue?logo=postgresql" alt="PostgreSQL/PostGIS">
-  <img src="https://img.shields.io/badge/Docker-Ready-blue?logo=docker" alt="Docker Ready">
-</p>
+Backend de la plataforma inteligente de gestión de incendios, basado en una arquitectura de microservicios.
 
-**FocoCero** es una solución tecnológica avanzada diseñada para la **Municipalidad Valle del Sol**. Este sistema nace como respuesta a la necesidad crítica de prevenir, detectar y coordinar incendios forestales y urbanos de manera eficiente mediante una arquitectura de microservicios escalable.
+## Tabla de Contenidos
+
+- [Descripción](#descripción)
+- [Arquitectura](#arquitectura)
+- [Tecnologías](#tecnologías)
+- [Microservicios](#microservicios)
+- [Estructura del Proyecto](#estructura-del-proyecto)
+- [Instalación](#instalación)
+- [Configuración](#configuración)
+- [Ejecución](#ejecución)
+- [Endpoints](#endpoints)
+- [Autenticación y Seguridad](#autenticación-y-seguridad)
+- [Contribución](#contribución)
+
+---
+
+## Descripción
+
+FocoCero es un sistema de gestión de emergencias desarrollado para la **Municipalidad Valle del Sol**. El backend está basado en una arquitectura de **microservicios** que permite:
+
+- **Escalabilidad**: Cada servicio escala de manera independiente
+- **Mantenibilidad**: Código modular y separable
+- **Resiliencia**: Aislamiento de fallos entre servicios
+- **Desarrollo paralelo**: Equipos pueden trabajar en diferentes servicios simultáneamente
 
 Este proyecto corresponde al **Examen Final Transversal (EFT)** de la asignatura **DSY1106: DESARROLLO FULLSTACK III**.
 
 ---
 
-## 👥 Autores
+## Arquitectura
 
-El desarrollo de esta plataforma fue liderado por:
+### Topología
+
+```
+                    ┌─────────────────┐
+                    │   FRONTEND      │
+                    │   (Expo/React)  │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │  API GATEWAY    │  :3000
+                    │   (BFF + Proxy) │
+                    └────────┬────────┘
+                             │
+        ┌──────────┬─────────┼─────────┬──────────┐
+        │          │         │         │          │
+        ▼          ▼         ▼         ▼          ▼
+   ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+   │ ms-    │ │ ms-    │ │ ms-    │ │ ms-    │ │ ms-    │
+   │ auth   │ │ geo    │ │ alertas│ │reportes│ │multimedia
+   │ :3001  │ │ :3002  │ │ :3003  │ │ :3004  │ │ :3005  │
+   └────────┘ └────────┘ └────────┘ └────────┘ └────────┘
+        │          │         │         │          │
+        └──────────┴─────────┼─────────┴──────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │ PostgreSQL +   │
+                    │ PostGIS        │ :5432
+                    └─────────────────┘
+```
+
+### Patrón de Comunicación
+
+- **Cliente → Gateway**: REST sobre HTTP
+- **Gateway → Microservicios**: Proxy mediante `http-proxy-middleware`
+- **Microservicios → Base de Datos**: PostgreSQL con extensión PostGIS
+
+---
+
+## Tecnologías
+
+| Categoría | Tecnología |
+|-----------|------------|
+| **Runtime** | Node.js v22 |
+| **Lenguaje** | TypeScript (strict mode) |
+| **Framework** | Express.js |
+| **Base de Datos** | PostgreSQL + PostGIS |
+| **Autenticación** | Firebase Admin SDK |
+| **Validación** | Zod |
+| **Contenedores** | Docker + Docker Compose |
+| **Testing** | Jest |
+| **Linting** | ESLint |
+| **Formateo** | Prettier |
+
+---
+
+## Microservicios
+
+| # | Microservicio | Puerto | Descripción |
+|---|---------------|--------|-------------|
+| 1 | **api-gateway** | 3000 | BFF (Backend for Frontend) - Punto de entrada único |
+| 2 | **ms-auth** | 3001 | Autenticación y gestión de usuarios (Firebase) |
+| 3 | **ms-geo** | 3002 | Focos georreferenciados, análisis espacial (PostGIS) |
+| 4 | **ms-alertas** | 3003 | Gestión de alertas en tiempo real |
+| 5 | **ms-reportes** | 3004 | Sistema de reportes ciudadanos |
+| 6 | **ms-multimedia** | 3005 | Gestión de evidencias (fotos/videos) |
+| 7 | **ms-emergencias** | 3006 | Coordinación de despachos a organismos |
+| 8 | **ms-analitica** | 3007 | Dashboard, métricas y analítica predictiva |
+
+---
+
+## Estructura del Proyecto
+
+```
+fococero-backend/
+├── api-gateway/              # BFF - Punto de entrada
+│   ├── src/
+│   │   ├── config/           # Configuración (envs, firebase, logger)
+│   │   ├── docs/            # Swagger/OpenAPI
+│   │   ├── middlewares/     # Auth, rate limiting, trazas
+│   │   └── routes/          # Enrutamiento del gateway
+│   └── Dockerfile
+├── ms-auth/                  # Autenticación
+│   ├── src/
+│   │   ├── config/
+│   │   ├── controllers/     # Lógica de negocio
+│   │   ├── helpers/         # Utilidades (RUT validator)
+│   │   ├── middlewares/     # Auth, roles, errores
+│   │   ├── models/          # Entity models
+│   │   ├── repositories/    # Acceso a datos
+│   │   ├── routes/          # Endpoints
+│   │   ├── services/        # Lógica de negocio
+│   │   └── validators/      # Validación Zod
+│   ├── database/            # Scripts SQL
+│   └── Dockerfile
+├── ms-geo/                  # Geoespacial
+├── ms-alertas/              # Alertas
+├── ms-reportes/             # Reportes ciudadanos
+├── ms-multimedia/           # Multimedia
+├── ms-emergencias/          # Despachos
+├── ms-analitica/            # Analítica
+├── docker-compose.yml       # Orquestación
+├── package.json             # Workspace root
+└── README.md
+```
+
+### Estructura de un Microservicio (Estándar)
+
+```
+ms-[servicio]/
+├── src/
+│   ├── config/          # Configuración del servicio
+│   ├── controllers/     # Manejo de requests/responses
+│   ├── docs/            # Documentación Swagger
+│   ├── helpers/         # Funciones utilitarias
+│   ├── middlewares/     # Middlewares específicos
+│   ├── models/          # Modelos de datos
+│   ├── repositories/    # Capa de acceso a datos
+│   ├── routes/          # Definición de rutas
+│   ├── services/        # Lógica de negocio
+│   ├── validators/      # Validadores Zod
+│   └── index.ts         # Punto de entrada
+├── database/            # Scripts SQL (DDL, seeds)
+├── tests/               # Tests unitarios
+├── Dockerfile
+├── package.json
+├── tsconfig.json
+└── .env.example
+```
+
+---
+
+## Instalación
+
+### Prerrequisitos
+
+- Docker Desktop (última versión)
+- Node.js v22+ (para desarrollo local sin Docker)
+- Git
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/DavNat13/fococero-backend.git
+cd fococero-backend
+```
+
+### 2. Configurar variables de entorno
+
+Cada microservicio tiene su propio `.env`. Ver `.env.example` en cada directorio.
+
+```bash
+# Copiar ejemplo de variables para el gateway
+cp api-gateway/.env.example api-gateway/.env
+
+# Para cada microservicio
+cp ms-auth/.env.example ms-auth/.env
+cp ms-geo/.env.example ms-geo/.env
+# ... etc
+```
+
+---
+
+## Configuración
+
+### Variables de Entorno del Gateway
+
+```env
+# Puerto del gateway
+PORT=3000
+
+# URLs de los microservicios
+AUTH_SERVICE_URL=http://ms-auth:3001
+GEO_SERVICE_URL=http://ms-geo:3002
+ALERTAS_SERVICE_URL=http://ms-alertas:3003
+REPORTES_SERVICE_URL=http://ms-reportes:3004
+MULTIMEDIA_SERVICE_URL=http://ms-multimedia:3005
+EMERGENCIAS_SERVICE_URL=http://ms-emergencias:3006
+ANALITICA_SERVICE_URL=http://ms-analitica:3007
+
+# Seguridad interna (para comunicación entre servicios)
+INTERNAL_SECRET_TOKEN=your_internal_secret_token
+
+# Firebase
+FIREBASE_PROJECT_ID=fococero-218bf
+FIREBASE_PRIVATE_KEY=your_private_key
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk@...
+
+# Base de datos
+POSTGRES_HOST=postgres
+POSTGRES_PORT=5432
+POSTGRES_USER=fococero
+POSTGRES_PASSWORD=password
+POSTGRES_DB=fococero_db
+```
+
+### Base de Datos
+
+El proyecto utiliza **PostgreSQL con extensión PostGIS** para soportar operaciones geoespaciales:
+
+- Tipos de datos geométricos (POINT, POLYGON, etc.)
+- Funciones de análisis espacial (ST_Distance, ST_Within, etc.)
+- Índices espaciales para optimización de consultas
+
+---
+
+## Ejecución
+
+### Modo Desarrollo (Docker Compose)
+
+```bash
+# Construir y levantar todos los servicios
+docker-compose up --build -d
+
+# Ver logs de un servicio específico
+docker-compose logs -f ms-auth
+
+# Detener todos los servicios
+docker-compose down
+
+# Detener y eliminar volúmenes
+docker-compose down -v
+```
+
+### Verificación de Servicios
+
+```bash
+# Health check del gateway
+curl http://localhost:3000/health
+
+# Health check de un microservicio
+curl http://localhost:3001/health
+```
+
+### Servicios Disponibles
+
+| Servicio | URL | Descripción |
+|-----------|-----|-------------|
+| API Gateway | http://localhost:3000 | Punto de entrada principal |
+| pgAdmin | http://localhost:5050 | Administrador de PostgreSQL |
+| Swagger (Gateway) | http://localhost:3000/api/docs | Documentación API |
+
+---
+
+## Endpoints
+
+### API Gateway
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/health` | Health check del gateway |
+
+### ms-auth (Puerto 3001 → `/api/auth`)
+
+| Método | Endpoint | Auth | Descripción |
+|--------|----------|------|-------------|
+| POST | `/register-guest` | ❌ | Registro de invitado |
+| POST | `/register-full` | ❌ | Registro completo con Firebase |
+| GET | `/me` | ✅ | Obtener perfil del usuario |
+| PATCH | `/me` | ✅ | Actualizar perfil |
+| PATCH | `/me/fcm-token` | ✅ | Sincronizar token FCM |
+| GET | `/users` | ✅ (ADMIN) | Listar usuarios |
+| PATCH | `/users/:id/role` | ✅ (ADMIN) | Cambiar rol |
+| PATCH | `/users/:id/status` | ✅ (ADMIN) | Cambiar estado |
+| DELETE | `/users/:id` | ✅ (ADMIN) | Eliminar usuario |
+
+### ms-alertas (Puerto 3003 → `/api/alertas`)
+
+| Método | Endpoint | Auth | Descripción |
+|--------|----------|------|-------------|
+| POST | `/` | ✅ | Crear alerta |
+| GET | `/mis-alertas` | ✅ | Mis alertas |
+| GET | `/cercanas` | ✅ | Alertas cercanas |
+| GET | `/` | ✅ (ADMIN/BRIGADISTA) | Todas las alertas |
+| GET | `/:id` | ✅ | Ver alerta por ID |
+| POST | `/:id/verificar` | ✅ (ADMIN/BRIGADISTA) | Verificar alerta |
+| PATCH | `/:id/estado` | ✅ (ADMIN/BRIGADISTA) | Cambiar estado |
+| DELETE | `/:id` | ✅ (ADMIN) | Eliminar alerta |
+
+### ms-reportes (Puerto 3004 → `/api/reportes`)
+
+| Método | Endpoint | Auth | Descripción |
+|--------|----------|------|-------------|
+| GET | `/categorias` | ✅ | Listar categorías |
+| POST | `/` | ✅ | Crear reporte |
+| GET | `/` | ✅ | Listar reportes |
+| GET | `/me` | ✅ | Mis reportes |
+| GET | `/:id` | ✅ | Ver reporte por ID |
+| PATCH | `/:id` | ✅ | Actualizar reporte |
+| DELETE | `/:id` | ✅ | Eliminar reporte |
+| GET | `/:id/historial` | ✅ (ADMIN/BRIGADISTA) | Ver historial |
+| PATCH | `/:id/estado` | ✅ (ADMIN/BRIGADISTA) | Cambiar estado |
+
+### ms-geo (Puerto 3002 → `/api/geo`)
+
+| Método | Endpoint | Auth | Descripción |
+|--------|----------|------|-------------|
+| POST | `/` | ❌ | Reportar foco |
+| GET | `/` | ❌ | Obtener todos los focos |
+| GET | `/cercanos` | ❌ | Focos cercanos |
+| GET | `/:id` | ❌ | Ver foco por ID |
+| PATCH | `/:id/estado` | ✅ (ADMIN/BRIGADISTA) | Cambiar estado |
+| PATCH | `/:id/perimetro` | ✅ (ADMIN/BRIGADISTA) | Actualizar perímetro |
+| PUT | `/:id` | ✅ (ADMIN/BRIGADISTA) | Actualizar foco |
+| DELETE | `/:id` | ✅ (ADMIN/BRIGADISTA) | Eliminar foco |
+
+### ms-emergencias (Puerto 3006 → `/api/emergencias`)
+
+| Método | Endpoint | Auth | Descripción |
+|--------|----------|------|-------------|
+| POST | `/despachos` | ✅ (ADMIN/BRIGADISTA) | Crear despacho |
+| POST | `/despachos/retry` | ✅ (ADMIN) | Reintentar despacho fallido |
+| GET | `/despachos/:correlation_id` | ✅ | Consultar estado |
+| PATCH | `/despachos/:id/estado` | ✅ | Actualizar estado |
+
+### ms-analitica (Puerto 3007 → `/api/analitica`)
+
+| Método | Endpoint | Auth | Descripción |
+|--------|----------|------|-------------|
+| GET | `/ops/*` | ✅ (ADMIN/BRIGADISTA) | Operaciones |
+| GET | `/core/*` | ✅ (ADMIN/BRIGADISTA) | Métricas core |
+| GET | `/espacial/*` | ✅ (ADMIN/BRIGADISTA) | Análisis espacial |
+| GET | `/filtros/*` | ✅ (ADMIN/BRIGADISTA) | Filtros |
+| GET | `/exportar/*` | ✅ (ADMIN/BRIGADISTA) | Exportar datos |
+| GET | `/predictiva/*` | ✅ (ADMIN) | Analítica predictiva |
+
+### ms-multimedia (Puerto 3005 → `/api/multimedia`)
+
+| Método | Endpoint | Auth | Descripción |
+|--------|----------|------|-------------|
+| POST | `/upload` | ✅ | Subir archivo |
+| GET | `/:id` | ✅ | Descargar archivo |
+| DELETE | `/:id` | ✅ | Eliminar archivo |
+
+---
+
+## Autenticación y Seguridad
+
+### Flujo de Autenticación
+
+1. **Usuario se autentica** en el frontend (Firebase/Google)
+2. **Frontend obtiene** Firebase Token
+3. **Frontend envía** token en header: `Authorization: Bearer <firebase_token>`
+4. **API Gateway valida** el token usando Firebase Admin SDK
+5. **Gateway añade** header interno: `x-internal-token` para comunicación entre servicios
+
+### Roles (RBAC)
+
+| Rol | Descripción | Permisos |
+|-----|-------------|----------|
+| **CIUDADANO** | Usuario básico | Crear reportes, ver alertas cercanas, subir multimedia |
+| **BRIGADISTA** | Personal de terreno | Todo lo de ciudadano + gestionar estados, despachos, dashboard |
+| **ADMIN** | Administrador | Control total del sistema |
+
+### Middlewares de Seguridad
+
+- **validateFirebaseToken**: Valida token de Firebase en rutas privadas
+- **authorizeRole**: Verifica rol del usuario
+- **rateLimit**: Previene ataques de fuerza bruta
+- **traceId**: Trazabilidad de peticiones
+
+---
+
+## Contribución
+
+### Conventional Commits
+
+```bash
+feat(auth): agregar login con Google
+fix(alertas): corregir validación de estado
+refactor(geo): simplificar consulta de focos cercanos
+docs(readme): actualizar documentación de instalación
+test(reportes): agregar tests para controlador
+```
+
+### Ramas
+
+- `main` - Producción
+- `develop` - Integración
+- `feature/[nombre]` - Desarrollo
+- `fix/[nombre]` - Correcciones
+- `hotfix/[nombre]` - Correcciones urgentes
+
+### Pruebas
+
+```bash
+# Ejecutar tests de un servicio
+cd ms-auth
+npm test
+
+# Ejecutar con coverage
+npm test -- --coverage
+```
+
+---
+
+## Autores
 
 - **Mauro Almonacid**
 - **Ignacio Chacón**
 - **David Nahuelcar**
 
----
-
-## 📖 El Caso: Municipalidad Valle del Sol
-
-Históricamente, la gestión de emergencias en la comuna se basaba en procesos manuales y sistemas aislados. **FocoCero** centraliza la operación mediante tres pilares:
-
-1. **Detección Temprana:** Reportes ciudadanos con ubicación exacta.
-2. **Monitoreo Geográfico:** Mapas interactivos en tiempo real con PostGIS.
-3. **Comunicación Táctica:** Alertas automatizadas a la comunidad y organismos de emergencia (CONAF, Bomberos).
+Desarrollado para **DSY1106: DESARROLLO FULLSTACK III** - DUOC UC
 
 ---
 
-## 🏗️ Arquitectura de Microservicios
+## Notas de Desarrollo
 
-El ecosistema se divide en **5 microservicios independientes** que se comunican de forma orquestada:
+### Redes Locales
 
-| Servicio           | Responsabilidad Principal                                                                                                 |
-| :----------------- | :------------------------------------------------------------------------------------------------------------------------ |
-| **🚀 API Gateway** | Punto de entrada único. Gestiona el enrutamiento, seguridad perimetral y centraliza las peticiones del frontend.          |
-| **🔐 MS-Auth**     | Gestión de identidad mediante Firebase Admin SDK. Control de acceso basado en roles (RBAC: Ciudadano, Brigadista, Admin). |
-| **🌍 MS-Geo**      | El "cerebro" espacial. Utiliza PostGIS para calcular perímetros de fuego, zonas de riesgo y geocercas.                    |
-| **📢 MS-Alertas**  | Gestión de la respuesta inmediata. Controla el despliegue de brigadas y el cambio de estados críticos.                    |
-| **📋 MS-Reportes** | Captura de incidentes ciudadanos. Gestiona metadatos, categorías de incendios e historial inmutable de estados.           |
+El Gateway écoute en `0.0.0.0:3000` para ser accesible desde dispositivos en la misma red local. La IP del host debe ser usada por el frontend (ej: `192.168.x.xxx:3000`).
 
----
+### Base de Datos Compartida
 
-## 🚀 Stack Tecnológico
+Todos los microservicios comparten la misma base de datos PostgreSQL pero tienen **schemas separados**:
+- `auth.*` - Tablas de autenticación
+- `geo.*` - Tablas geoespaciales
+- `alertas.*` - Tablas de alertas
+- `reportes.*` - Tablas de reportes
 
-### Backend & Core
+### Health Checks
 
-<p align="left">
-  <a href="https://skillicons.dev">
-    <img src="https://skillicons.dev/icons?i=nodejs,typescript,express,postgres,docker,firebase,githubactions" />
-  </a>
-</p>
-
-- **Entorno:** Node.js v22 con TypeScript para un tipado robusto.
-- **Base de Datos:** PostgreSQL con extensión **PostGIS** para análisis geográfico.
-- **Seguridad:** Firebase Admin SDK y validación por JSON Web Tokens (JWT).
-- **Infraestructura:** Docker y Docker Compose para orquestación local.
-- **CI/CD:** Pipelines automatizados mediante GitHub Actions.
+Cada microservicio expone `/health` para verificación de estado en Docker.
 
 ---
 
-## 📂 Estructura del Proyecto
+## Licencia
 
-La arquitectura sigue una separación estricta de responsabilidades en carpetas independientes:
-
-<details>
-<summary>Haz clic para expandir la estructura de archivos</summary>
-
-```
-── 📁 fococero-backend
-    ├── 📁 .github
-    │   └── 📁 workflows
-    │       ├── ⚙️ ci-alertas.yml
-    │       ├── ⚙️ ci-auth.yml
-    │       ├── ⚙️ ci-gateway.yml
-    │       ├── ⚙️ ci-geo.yml
-    │       └── ⚙️ ci-reportes.yml
-    ├── 📁 api-gateway
-    │   ├── 📁 src
-    │   │   ├── 📁 config
-    │   │   │   ├── 📄 cors.ts
-    │   │   │   ├── 📄 envs.ts
-    │   │   │   ├── 📄 firebase.ts
-    │   │   │   └── 📄 logger.ts
-    │   │   ├── 📁 docs
-    │   │   │   ├── 📄 alertas.swagger.ts
-    │   │   │   ├── 📄 auth.swagger.ts
-    │   │   │   ├── 📄 geo.swagger.ts
-    │   │   │   ├── 📄 reportes.swagger.ts
-    │   │   │   ├── ⚙️ swagger.json
-    │   │   │   └── 📄 swagger.ts
-    │   │   ├── 📁 middlewares
-    │   │   │   ├── 📄 auth.middleware.ts
-    │   │   │   ├── 📄 errorHandler.ts
-    │   │   │   ├── 📄 rateLimiter.ts
-    │   │   │   └── 📄 traceId.ts
-    │   │   ├── 📁 routes
-    │   │   │   └── 📄 routes.ts
-    │   │   └── 📄 index.ts
-    │   ├── ⚙️ .gitignore
-    │   ├── 🐳 Dockerfile
-    │   ├── ⚙️ package-lock.json
-    │   ├── ⚙️ package.json
-    │   └── ⚙️ tsconfig.json
-    ├── 📁 ms-alertas
-    │   ├── 📁 database
-    │   │   └── 📄 init.sql
-    │   ├── 📁 src
-    │   │   ├── 📁 @types
-    │   │   │   ├── 📁 express
-    │   │   │   │   └── 📄 index.d.ts
-    │   │   │   └── 📄 env.d.ts
-    │   │   ├── 📁 config
-    │   │   │   ├── 📄 database.ts
-    │   │   │   ├── 📄 envs.ts
-    │   │   │   └── 📄 firebase.ts
-    │   │   ├── 📁 controllers
-    │   │   │   └── 📄 alerta.controller.ts
-    │   │   ├── 📁 docs
-    │   │   │   └── ⚙️ swagger.json
-    │   │   ├── 📁 helpers
-    │   │   │   └── 📄 alerta.helper.ts
-    │   │   ├── 📁 middlewares
-    │   │   │   ├── 📄 auth.middleware.ts
-    │   │   │   ├── 📄 error.middleware.ts
-    │   │   │   ├── 📄 role.middleware.ts
-    │   │   │   └── 📄 validate.middleware.ts
-    │   │   ├── 📁 models
-    │   │   │   ├── 📄 alerta.model.ts
-    │   │   │   └── 📄 user.enum.ts
-    │   │   ├── 📁 repositories
-    │   │   │   └── 📄 alerta.repository.ts
-    │   │   ├── 📁 routes
-    │   │   │   └── 📄 alerta.routes.ts
-    │   │   ├── 📁 services
-    │   │   │   └── 📄 alerta.service.ts
-    │   │   ├── 📁 validators
-    │   │   │   └── 📄 alerta.validator.ts
-    │   │   └── 📄 index.ts
-    │   ├── 📁 tests
-    │   │   └── 📄 health.test.ts
-    │   ├── ⚙️ .gitignore
-    │   ├── ⚙️ .prettierrc
-    │   ├── 🐳 Dockerfile
-    │   ├── 📄 eslint.config.mjs
-    │   ├── 📄 jest.config.js
-    │   ├── ⚙️ package-lock.json
-    │   ├── ⚙️ package.json
-    │   └── ⚙️ tsconfig.json
-    ├── 📁 ms-auth
-    │   ├── 📁 src
-    │   │   ├── 📁 @types
-    │   │   │   ├── 📁 express
-    │   │   │   │   └── 📄 index.d.ts
-    │   │   │   └── 📄 env.d.ts
-    │   │   ├── 📁 config
-    │   │   │   ├── 📄 database.ts
-    │   │   │   ├── 📄 envs.ts
-    │   │   │   └── 📄 firebase.ts
-    │   │   ├── 📁 controllers
-    │   │   │   └── 📄 auth.controller.ts
-    │   │   ├── 📁 docs
-    │   │   │   └── ⚙️ swagger.json
-    │   │   ├── 📁 helpers
-    │   │   │   └── 📄 rut.helper.ts
-    │   │   ├── 📁 middlewares
-    │   │   │   ├── 📄 auth.middleware.ts
-    │   │   │   ├── 📄 error.middleware.ts
-    │   │   │   └── 📄 role.middleware.ts
-    │   │   ├── 📁 models
-    │   │   │   ├── 📄 user.enum.ts
-    │   │   │   └── 📄 user.model.ts
-    │   │   ├── 📁 repositories
-    │   │   │   └── 📄 user.repository.ts
-    │   │   ├── 📁 routes
-    │   │   │   └── 📄 auth.routes.ts
-    │   │   ├── 📁 services
-    │   │   │   └── 📄 auth.service.ts
-    │   │   ├── 📁 validators
-    │   │   │   └── 📄 auth.validator.ts
-    │   │   └── 📄 index.ts
-    │   ├── 📁 tests
-    │   │   └── 📄 health.test.ts
-    │   ├── ⚙️ .dockerignore
-    │   ├── ⚙️ .gitignore
-    │   ├── ⚙️ .prettierrc
-    │   ├── 🐳 Dockerfile
-    │   ├── 📝 README.md
-    │   ├── 📄 eslint.config.mjs
-    │   ├── 📄 init.sql
-    │   ├── 📄 jest.config.js
-    │   ├── ⚙️ package-lock.json
-    │   ├── ⚙️ package.json
-    │   └── ⚙️ tsconfig.json
-    ├── 📁 ms-geo
-    │   ├── 📁 database
-    │   │   └── 📄 init.sql
-    │   ├── 📁 src
-    │   │   ├── 📁 @types
-    │   │   │   ├── 📁 express
-    │   │   │   │   └── 📄 index.d.ts
-    │   │   │   └── 📄 env.d.ts
-    │   │   ├── 📁 config
-    │   │   │   ├── 📄 database.ts
-    │   │   │   ├── 📄 envs.ts
-    │   │   │   └── 📄 firebase.ts
-    │   │   ├── 📁 controllers
-    │   │   │   └── 📄 geo.controller.ts
-    │   │   ├── 📁 docs
-    │   │   │   └── ⚙️ swagger.json
-    │   │   ├── 📁 helpers
-    │   │   │   └── 📄 geo.helper.ts
-    │   │   ├── 📁 middlewares
-    │   │   │   ├── 📄 auth.middleware.ts
-    │   │   │   └── 📄 error.middleware.ts
-    │   │   ├── 📁 models
-    │   │   │   ├── 📄 geo.model.ts
-    │   │   │   └── 📄 user.enum.ts
-    │   │   ├── 📁 repositories
-    │   │   │   └── 📄 geo.repository.ts
-    │   │   ├── 📁 routes
-    │   │   │   └── 📄 geo.routes.ts
-    │   │   ├── 📁 services
-    │   │   │   └── 📄 geo.service.ts
-    │   │   ├── 📁 validators
-    │   │   │   └── 📄 geo.validator.ts
-    │   │   └── 📄 index.ts
-    │   ├── 📁 tests
-    │   │   └── 📄 geo-health.test.ts
-    │   ├── ⚙️ .gitignore
-    │   ├── ⚙️ .prettierrc
-    │   ├── 🐳 Dockerfile
-    │   ├── 📄 eslint.config.mjs
-    │   ├── 📄 jest.config.js
-    │   ├── ⚙️ package-lock.json
-    │   ├── ⚙️ package.json
-    │   └── ⚙️ tsconfig.json
-    ├── 📁 ms-reportes
-    │   ├── 📁 database
-    │   │   └── 📄 init.sql
-    │   ├── 📁 src
-    │   │   ├── 📁 @types
-    │   │   ├── 📁 config
-    │   │   │   ├── 📄 db.ts
-    │   │   │   ├── 📄 envs.ts
-    │   │   │   └── 📄 firebase.ts
-    │   │   ├── 📁 controllers
-    │   │   │   └── 📄 reporte.controller.ts
-    │   │   ├── 📁 docs
-    │   │   │   └── ⚙️ swagger.json
-    │   │   ├── 📁 helpers
-    │   │   │   ├── 📄 appError.ts
-    │   │   │   └── 📄 catchAsync.ts
-    │   │   ├── 📁 middlewares
-    │   │   │   ├── 📄 auth.middleware.ts
-    │   │   │   ├── 📄 error.middleware.ts
-    │   │   │   ├── 📄 role.middleware.ts
-    │   │   │   └── 📄 validate.middleware.ts
-    │   │   ├── 📁 models
-    │   │   │   ├── 📄 reporte.model.ts
-    │   │   │   └── 📄 user.enum.ts
-    │   │   ├── 📁 repositories
-    │   │   │   └── 📄 reporte.repository.ts
-    │   │   ├── 📁 routes
-    │   │   │   └── 📄 reporte.routes.ts
-    │   │   ├── 📁 services
-    │   │   │   └── 📄 reporte.service.ts
-    │   │   ├── 📁 validators
-    │   │   │   └── 📄 reporte.validator.ts
-    │   │   └── 📄 index.ts
-    │   ├── ⚙️ .gitignore
-    │   ├── ⚙️ .prettierrc
-    │   ├── 🐳 Dockerfile
-    │   ├── 📄 eslint.config.mjs
-    │   ├── 📄 jest.config.js
-    │   ├── ⚙️ package-lock.json
-    │   ├── ⚙️ package.json
-    │   └── ⚙️ tsconfig.json
-    ├── ⚙️ .gitignore
-    ├── 📝 README.md
-    ├── ⚙️ docker-compose.yml
-    ├── ⚙️ package-lock.json
-    └── ⚙️ package.json
-```
-
-</details>
-
-## 💻 Configuración y Despliegue Local
-
-### Requisitos Previos
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [Node.js v22](https://nodejs.org/)
-- [Git](https://git-scm.com/)
-
-### Pasos para iniciar
-
-1. **Clonar el repositorio:**
-   ```bash
-   git clone [https://github.com/DavNat13/fococero-backend.git](https://github.com/DavNat13/fococero-backend.git)
-   cd fococero-backend
-   ```
-
-### 🚀 Levantar el ecosistema
-
-Utiliza **Docker Compose** para construir e iniciar todos los microservicios y la base de datos en segundo plano:
-
-```bash
-docker-compose up --build -d
-```
-
-### 🚦 Verificar estados
-
-Una vez que los contenedores estén corriendo, puedes acceder a los siguientes servicios estratégicos:
-
-- **API Gateway:** [http://localhost:3000](http://localhost:3000)
-- **pgAdmin 4 (Gestor de BD):** [http://localhost:5050](http://localhost:5050)
+MIT © 2024 FocoCero - DUOC UC

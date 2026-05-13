@@ -57,7 +57,7 @@ services:
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 5s
+      timeout: 3s
       retries: 5
 
   # ==========================================
@@ -66,13 +66,19 @@ services:
   eureka-server:
     image: steeltoeoss/eureka-server:latest
     container_name: fococero-eureka
-    environment:
-      - EUREKA_CLIENT_REGISTERWITHEUREKA=${EUREKA_CLIENT_REGISTERWITHEUREKA}
-      - EUREKA_CLIENT_FETCHREGISTRY=${EUREKA_CLIENT_FETCHREGISTRY}
     ports:
       - "8761:8761"
+    environment:
+      - EUREKA_CLIENT_REGISTERWITHEUREKA=false
+      - EUREKA_CLIENT_FETCHREGISTRY=false
     networks:
       - fococero-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8761/eureka/apps || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   # ==========================================
   # 🚦 API GATEWAY
@@ -85,7 +91,9 @@ services:
     env_file: ./api-gateway/.env
     depends_on:
       eureka-server:
-        condition: service_started
+        condition: service_healthy
+      db-fococero:
+        condition: service_healthy
       ms-auth:
         condition: service_started
       ms-geo:
@@ -111,7 +119,7 @@ services:
       db-fococero:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fococero-network
 
@@ -128,7 +136,7 @@ services:
       redis-fococero:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fococero-network
 
@@ -143,7 +151,7 @@ services:
       db-fococero:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fococero-network
 
@@ -158,7 +166,7 @@ services:
       db-fococero:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fococero-network
 
@@ -173,7 +181,7 @@ services:
       db-fococero:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fococero-network
 
@@ -188,7 +196,7 @@ services:
       db-fococero:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fococero-network
 
@@ -203,7 +211,7 @@ services:
       db-fococero:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fococero-network
 
