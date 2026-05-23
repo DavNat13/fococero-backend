@@ -1,4 +1,20 @@
+# Dependencias
 node_modules/
-dist/
+
+# Variables de entorno y secretos (¡CRÍTICO!)
 .env
-*.log
+.env.*
+!.env.example
+
+# Archivos de compilación de TypeScript
+dist/
+build/
+
+# Logs de npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db

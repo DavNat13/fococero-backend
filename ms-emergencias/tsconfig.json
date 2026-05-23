@@ -1,0 +1,36 @@
+{
+    "compilerOptions": {
+        /* Opciones de Lenguaje y Entorno */
+        "target": "ES2022" /* Compatibilidad moderna para Node 18+ / 22 */,
+        "module": "CommonJS" /* Estándar de módulos para Node.js clásico */,
+        "esModuleInterop": true /* Permite importar librerías antiguas de forma limpia */,
+        "forceConsistentCasingInFileNames": true /* Evita errores de mayúsculas/minúsculas entre Windows y Linux */,
+        "resolveJsonModule": true /* Permite importar archivos .json directamente en TypeScript */,
+
+        /* Rutas de Compilación */
+        "rootDir": "./src" /* Carpeta raíz donde programaremos */,
+        "outDir": "./dist" /* Carpeta destino donde irá el código compilado */,
+        "sourceMap": true /* Útil para debuggear errores leyendo el TypeScript original */,
+
+        /* Reglas Estrictas (El estándar FocoCero) */
+        "strict": true /* Activa todas las comprobaciones de tipado estrictas */,
+        "noImplicitAny": true /* Prohíbe declarar variables sin tipo (adiós 'any' por accidente) */,
+        "strictNullChecks": true /* Obliga a validar si algo es null o undefined antes de usarlo */,
+        "noUnusedLocals": true /* Alerta si creas una variable y no la usas */,
+        "noUnusedParameters": true /* Alerta si una función recibe un parámetro que no usa */,
+
+        /* Optimizaciones */
+        "skipLibCheck": true /* Acelera la compilación ignorando los tipos de node_modules */,
+        "types": ["node", "jest", "express"] /* Tipos globales disponibles en el entorno */
+    },
+    "include": [
+        "src/**/*" /* Compilar todo lo que esté dentro de src/ */,
+        "src/@types/**/*" /* Incluir nuestras definiciones de tipos personalizadas */
+    ],
+    "exclude": [
+        "node_modules" /* Jamás compilar las dependencias */,
+        "dist" /* Evitar re-compilar lo ya compilado */,
+        "tests/**/*" /* Excluir las pruebas del build de producción */,
+        "**/*.test.ts"
+    ]
+}
