@@ -36,40 +36,74 @@ Este proyecto corresponde al **Examen Final Transversal (EFT)** de la asignatura
 ### Topología
 
 ```
-                    ┌─────────────────┐
-                    │   FRONTEND      │
-                    │   (Expo/React)  │
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │  API GATEWAY    │  :3000
-                    │   (BFF + Proxy) │
-                    └────────┬────────┘
-                             │
-        ┌──────────┬─────────┼─────────┬──────────┐
-        │          │         │         │          │
-        ▼          ▼         ▼         ▼          ▼
-   ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
-   │ ms-    │ │ ms-    │ │ ms-    │ │ ms-    │ │ ms-    │
-   │ auth   │ │ geo    │ │ alertas│ │reportes│ │multimedia
-   │ :3001  │ │ :3002  │ │ :3003  │ │ :3004  │ │ :3005  │
-   └────────┘ └────────┘ └────────┘ └────────┘ └────────┘
-        │          │         │         │          │
-        └──────────┴─────────┼─────────┴──────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │ PostgreSQL +   │
-                    │ PostGIS        │ :5432
-                    └─────────────────┘
+                         ┌─────────────────┐
+                         │   FRONTEND      │
+                         │   (Expo/React)  │
+                         └────────┬────────┘
+                                  │
+                                  ▼
+                         ┌────────────────────────────────┐
+                         │       API GATEWAY (:3000)      │
+                         │  Helmet · CORS · RateLimit     │
+                         │  Swagger · Eureka Client       │
+                         └────────┬───────────────────────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    │                           │
+                    ▼                           ▼
+          ┌──────────────────┐      ┌──────────────────────┐
+          │ EUREKA SERVER    │      │   REDIS 7 (:6379)    │
+          │ (:8761) Registry │      │   (Caché distribuida)│
+          └──────────────────┘      └──────────────────────┘
+                    ▲                           ▲
+                    │                           │
+     ┌──────────────┴───────┬──────────────────┘
+     │                      │
+     ▼                      ▼
+┌──────────┐        ┌──────────────┐
+│  ms-auth │        │ ms-emergencias│
+│  (:3001) │        │   (:3006)    │
+└────┬─────┘        └──────┬───────┘
+     │                     │
+     ▼                     ▼
+┌──────────┐        ┌──────────────┐
+│  ms-geo  │        │ ms-analitica │──▶ Redis
+│  (:3002) │        │   (:3007)    │
+└────┬─────┘        └──────┬───────┘
+     │                     │
+     ▼                     ▼
+┌──────────┐        ┌──────────────┐
+│ms-alertas│        │ ms-reportes  │
+│ (:3003)  │        │   (:3004)    │
+└────┬─────┘        └──────┬───────┘
+     │                     │
+     ▼                     ▼
+┌──────────┐               │
+│ms-multi- │               │
+│ media    │               │
+│ (:3005)  │               │
+└────┬─────┘               │
+     │                     │
+     └─────────┬───────────┘
+               │
+               ▼
+      ┌─────────────────────────────┐
+      │  PostgreSQL 15 + PostGIS    │
+      │  (:5432) · 7 schemas        │
+      │  auth | geo | alertas       │
+      │  reportes | multimedia      │
+      │  emergencias | analitica    │
+      └─────────────────────────────┘
 ```
 
 ### Patrón de Comunicación
 
 - **Cliente → Gateway**: REST sobre HTTP
-- **Gateway → Microservicios**: Proxy mediante `http-proxy-middleware`
+- **Gateway → Microservicios**: Proxy dinámico mediante Eureka Service Discovery
+- **Servicios → Eureka Server**: Registro, heartbeat (30s), desregistro en shutdown
 - **Microservicios → Base de Datos**: PostgreSQL con extensión PostGIS
+- **ms-analitica → Redis**: Caché distribuida para consultas frecuentes
+- **Servicios → RabbitMQ** (potencial): Mensajería asíncrona (configurado en entorno)
 
 ---
 
@@ -81,11 +115,14 @@ Este proyecto corresponde al **Examen Final Transversal (EFT)** de la asignatura
 | **Lenguaje** | TypeScript (strict mode) |
 | **Framework** | Express.js |
 | **Base de Datos** | PostgreSQL + PostGIS |
+| **Service Discovery** | Netflix Eureka (Steeltoe Server) |
+| **Caché** | Redis 7 Alpine |
+| **Mensajería** | RabbitMQ (amqplib) |
 | **Autenticación** | Firebase Admin SDK |
 | **Validación** | Zod |
 | **Contenedores** | Docker + Docker Compose |
 | **Testing** | Jest |
-| **Linting** | ESLint |
+| **Linting** | ESLint (Flat Config) |
 | **Formateo** | Prettier |
 
 ---
@@ -94,14 +131,35 @@ Este proyecto corresponde al **Examen Final Transversal (EFT)** de la asignatura
 
 | # | Microservicio | Puerto | Descripción |
 |---|---------------|--------|-------------|
-| 1 | **api-gateway** | 3000 | BFF (Backend for Frontend) - Punto de entrada único |
+| 1 | **api-gateway** | 3000 | BFF (Backend for Frontend) - Punto de entrada único con Eureka Client |
 | 2 | **ms-auth** | 3001 | Autenticación y gestión de usuarios (Firebase) |
 | 3 | **ms-geo** | 3002 | Focos georreferenciados, análisis espacial (PostGIS) |
 | 4 | **ms-alertas** | 3003 | Gestión de alertas en tiempo real |
 | 5 | **ms-reportes** | 3004 | Sistema de reportes ciudadanos |
 | 6 | **ms-multimedia** | 3005 | Gestión de evidencias (fotos/videos) |
-| 7 | **ms-emergencias** | 3006 | Coordinación de despachos a organismos |
-| 8 | **ms-analitica** | 3007 | Dashboard, métricas y analítica predictiva |
+| 7 | **ms-emergencias** | 3006 | Coordinación de despachos a organismos de emergencia |
+| 8 | **ms-analitica** | 3007 | Dashboard, métricas, analítica predictiva y exportación |
+| – | **ms-template** | – | Arquetipo base para crear nuevos microservicios (no es runtime) |
+
+---
+
+## 🧬 Arquetipo de Microservicios (ms-template)
+
+Se incluye un directorio `ms-template/` que funciona como **arquetipo oficial** para crear nuevos microservicios con arquitectura hexagonal. Para usarlo:
+
+```bash
+# 1. Copiar la plantilla
+cp -r ms-template ms-mi-servicio
+
+# 2. Renombrar en package.json
+# 3. Configurar .env según .env.example
+# 4. Ajustar puerto en Dockerfile
+# 5. Crear tablas en database/init.sql
+# 6. Renombrar resource.* a la entidad de dominio
+# 7. Registrar en docker-compose.yml y API Gateway
+```
+
+Ver `ms-template/README.md` para instrucciones detalladas.
 
 ---
 
@@ -109,34 +167,39 @@ Este proyecto corresponde al **Examen Final Transversal (EFT)** de la asignatura
 
 ```
 fococero-backend/
-├── api-gateway/              # BFF - Punto de entrada
+├── api-gateway/              # BFF - Punto de entrada con Eureka
 │   ├── src/
-│   │   ├── config/           # Configuración (envs, firebase, logger)
-│   │   ├── docs/            # Swagger/OpenAPI
-│   │   ├── middlewares/     # Auth, rate limiting, trazas
-│   │   └── routes/          # Enrutamiento del gateway
+│   │   ├── config/           # envs, eureka client, firebase
+│   │   ├── middlewares/      # Auth, rate limiting, trazas
+│   │   └── routes/           # Enrutamiento del gateway
 │   └── Dockerfile
-├── ms-auth/                  # Autenticación
+├── ms-auth/                  # Autenticación (Firebase)
 │   ├── src/
-│   │   ├── config/
-│   │   ├── controllers/     # Lógica de negocio
-│   │   ├── helpers/         # Utilidades (RUT validator)
-│   │   ├── middlewares/     # Auth, roles, errores
-│   │   ├── models/          # Entity models
-│   │   ├── repositories/    # Acceso a datos
-│   │   ├── routes/          # Endpoints
-│   │   ├── services/        # Lógica de negocio
-│   │   └── validators/      # Validación Zod
-│   ├── database/            # Scripts SQL
+│   │   ├── config/           # envs, eureka client
+│   │   ├── controllers/
+│   │   ├── helpers/          # RUT validator
+│   │   ├── middlewares/      # Auth, roles, errores
+│   │   ├── models/
+│   │   ├── repositories/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   └── validators/       # Zod
+│   ├── database/
 │   └── Dockerfile
-├── ms-geo/                  # Geoespacial
-├── ms-alertas/              # Alertas
-├── ms-reportes/             # Reportes ciudadanos
-├── ms-multimedia/           # Multimedia
-├── ms-emergencias/          # Despachos
-├── ms-analitica/            # Analítica
-├── docker-compose.yml       # Orquestación
-├── package.json             # Workspace root
+├── ms-geo/                   # Geoespacial (PostGIS)
+├── ms-alertas/               # Alertas en tiempo real
+├── ms-reportes/              # Reportes ciudadanos
+├── ms-multimedia/            # Evidencias multimedia
+├── ms-emergencias/           # Despachos a organismos
+├── ms-analitica/             # Analítica + Redis
+├── ms-template/              # 🏗️ Arquetipo base (no runtime)
+├── .specs/                   # 📋 Especificaciones técnicas
+│   ├── roadmap.md
+│   ├── skills/               # 18 skills de estándares de código
+│   └── tasks/                # Tareas completadas y pendientes
+├── docker-compose.yml        # Orquestación completa
+├── init-multiple-databases.sh
+├── package.json
 └── README.md
 ```
 
@@ -448,11 +511,17 @@ El Gateway écoute en `0.0.0.0:3000` para ser accesible desde dispositivos en la
 
 ### Base de Datos Compartida
 
-Todos los microservicios comparten la misma base de datos PostgreSQL pero tienen **schemas separados**:
-- `auth.*` - Tablas de autenticación
-- `geo.*` - Tablas geoespaciales
-- `alertas.*` - Tablas de alertas
-- `reportes.*` - Tablas de reportes
+Todos los microservicios comparten la misma instancia PostgreSQL pero tienen **bases de datos separadas** (multi-database) con **init scripts** orquestados numéricamente en `docker-compose.yml`:
+
+| # | Base de Datos | Microservicio | Script SQL |
+|---|---------------|---------------|------------|
+| 1 | `auth_db` | ms-auth | `01-init-auth.sql` |
+| 2 | `geo_db` | ms-geo | `02-init-geo.sql` |
+| 3 | `alertas_db` | ms-alertas | `03-init-alertas.sql` |
+| 4 | `reportes_db` | ms-reportes | `04-init-reportes.sql` |
+| 5 | `multimedia_db` | ms-multimedia | `05-init-multimedia.sql` |
+| 6 | `emergencias_db` | ms-emergencias | `06-init-emergencias.sql` |
+| 7 | `analitica_db` | ms-analitica | `07-init-analitica.sql` |
 
 ### Health Checks
 

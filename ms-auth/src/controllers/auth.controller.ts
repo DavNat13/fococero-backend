@@ -10,7 +10,7 @@ export class AuthController {
             const result = await AuthService.registerGuestUser(req.body);
             const statusCode = result.isNew ? 201 : 200;
             const msg = result.isNew
-                ? 'Invitado registrado exitosamente'
+                ? 'Usuario registrado exitosamente'
                 : 'Usuario ya identificado en el sistema';
 
             res.status(statusCode).json({ ok: true, msg, usuario: result.user });

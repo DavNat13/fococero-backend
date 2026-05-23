@@ -40,7 +40,7 @@ export class AuthService {
             nombre: data.nombre.trim(),
             apellido: data.apellido.trim(),
             telefono: data.telefono.trim(),
-            rol: UserRole.INVITADO,
+            rol: UserRole.USUARIO,
             estado: UserStatus.ACTIVO,
         });
 
