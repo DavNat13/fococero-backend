@@ -7,7 +7,6 @@ module.exports = {
   moduleNameMapper: {
     '^firebase-admin$': '<rootDir>/__mocks__/firebase-admin.ts',
   },
-  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts', '!src/index.ts'],
   coverageThreshold: {
     global: {
       branches: 70,
