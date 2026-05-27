@@ -1,6 +1,7 @@
 // ms-reportes/src/config/db.ts
 import { Pool } from 'pg';
 import { envs } from './envs';
+import { logger } from './logger';
 
 export const pool = new Pool({
     host: envs.DB_HOST,
@@ -14,11 +15,11 @@ export const pool = new Pool({
 });
 
 pool.on('connect', () => {
-    console.log('✅ Conexión a PostgreSQL (PostGIS) establecida con éxito en ms-reportes.');
+    logger.info('✅ Conexión a PostgreSQL (PostGIS) establecida con éxito en ms-reportes.');
 });
 
 pool.on('error', (err: Error) => {
-    console.error('❌ Error inesperado en el pool de base de datos de reportes:', err.message);
+    logger.error({ err }, '❌ Error inesperado en el pool de base de datos de reportes');
     process.exit(-1);
 });
 
@@ -26,7 +27,7 @@ export const testDbConnection = async () => {
     const client = await pool.connect();
     try {
         const res = await client.query('SELECT NOW()');
-        console.log(`📡 Motor de Reportes Operativo. Server Time: ${res.rows[0].now}`);
+        logger.info(`📡 Motor de Reportes Operativo. Server Time: ${res.rows[0].now}`);
     } finally {
         client.release();
     }
@@ -34,9 +35,9 @@ export const testDbConnection = async () => {
 
 // Graceful Shutdown
 const closePool = async () => {
-    console.log('🛑 Cerrando pool de conexiones de ms-reportes...');
+    logger.info('🛑 Cerrando pool de conexiones de ms-reportes...');
     await pool.end();
-    console.log('✅ Pool cerrado.');
+    logger.info('✅ Pool cerrado.');
 };
 
 process.on('SIGTERM', closePool);

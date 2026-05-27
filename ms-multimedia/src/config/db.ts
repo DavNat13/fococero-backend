@@ -1,26 +1,27 @@
 // ms-multimedia/src/config/db.ts
 import { Pool } from 'pg';
 import { envs } from './envs';
+import { logger } from './logger';
 
 export const pool = new Pool({
     user: envs.DB_USER,
     password: envs.DB_PASSWORD,
     database: envs.DB_NAME,
-    host: envs.DB_HOST, // <--- Directo y sin lógica
-    port: envs.DB_PORT, // <--- Directo y sin lógica
+    host: envs.DB_HOST, // 
+    port: envs.DB_PORT, // 
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 3000,
 });
 
 pool.on('error', (err: unknown) => {
-    console.error('🔥 Error crítico inesperado en el Pool de PostgreSQL (ms-multimedia):', err);
+    logger.error('🔥 Error crítico inesperado en el Pool de PostgreSQL (ms-multimedia):', err);
 });
 
 pool.query('SELECT NOW()')
     .then(() => {
-        console.log('✅ Conexión a PostgreSQL (PostGIS) establecida con éxito en ms-multimedia.');
+        logger.info('✅ Conexión a PostgreSQL (PostGIS) establecida con éxito en ms-multimedia.');
     })
     .catch((err: unknown) => {
-        console.error('❌ Error conectando a PostgreSQL:', err);
+        logger.error('❌ Error conectando a PostgreSQL:', err);
     });

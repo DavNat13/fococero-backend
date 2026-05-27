@@ -1,5 +1,6 @@
 import { rabbitMQBus } from "../config/rabbitmq";
 import { ingestaService } from "../services/ingesta.service";
+import { Logger } from "../helpers/logger.helper";
 
 export class IncidenteConsumer {
   private static readonly EXCHANGE = "fococero.events";
@@ -35,7 +36,7 @@ export class IncidenteConsumer {
         await ingestaService.procesarEventoIncidente(payload);
         channel.ack(msg);
       } catch (error) {
-        console.error("[RabbitMQ] Error en consumidor, enviando a DLQ:", error);
+        Logger.error("[RabbitMQ] Error en consumidor, enviando a DLQ:", error);
         channel.nack(msg, false, false);
       }
     });

@@ -1,5 +1,6 @@
 // ms-reportes/src/middlewares/error.middleware.ts
 import { Request, Response, NextFunction } from 'express';
+import { logger } from '../config/logger';
 
 interface AppError extends Error {
     statusCode?: number;
@@ -13,7 +14,7 @@ export const errorHandler = (
     _next: NextFunction,
 ): void => {
     const error = err as AppError;
-    console.error(`🚨 [Reportes Error]:`, error.message || error);
+    logger.error({ err: error }, `🚨 [Reportes Error]`);
 
     let statusCode = error.statusCode || 500;
     let message = error.message || 'Error interno en el sistema de reportes de FocoCero.';

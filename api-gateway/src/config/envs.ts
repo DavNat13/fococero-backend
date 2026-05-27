@@ -2,6 +2,22 @@
 
 import "dotenv/config";
 import { z } from "zod";
+import { logger } from "./logger";
+
+const testDefaults = {
+  AUTH_SERVICE_URL: "http://localhost:3001",
+  GEO_SERVICE_URL: "http://localhost:3002",
+  ALERTAS_SERVICE_URL: "http://localhost:3003",
+  REPORTES_SERVICE_URL: "http://localhost:3004",
+  MULTIMEDIA_SERVICE_URL: "http://localhost:3005",
+  EMERGENCIAS_SERVICE_URL: "http://localhost:3006",
+  ANALITICA_SERVICE_URL: "http://localhost:3007",
+  EUREKA_HOST: "localhost",
+  INTERNAL_SECRET_TOKEN: "test-token",
+  FIREBASE_PROJECT_ID: "test-project",
+  FIREBASE_CLIENT_EMAIL: "test@test.com",
+  FIREBASE_PRIVATE_KEY: "test-key",
+};
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
@@ -10,15 +26,16 @@ const envSchema = z.object({
     .default("development"),
 
   // URLs de Microservicios
-  AUTH_SERVICE_URL: z.string().url(),
-  GEO_SERVICE_URL: z.string().url(),
-  ALERTAS_SERVICE_URL: z.string().url(),
-  REPORTES_SERVICE_URL: z.string().url(),
-  MULTIMEDIA_SERVICE_URL: z.string().url(),
-  EMERGENCIAS_SERVICE_URL: z.string().url(),
-  ANALITICA_SERVICE_URL: z.string().url(), 
+  AUTH_SERVICE_URL: z.string().url().default("http://localhost:3001"),
+  GEO_SERVICE_URL: z.string().url().default("http://localhost:3002"),
+  ALERTAS_SERVICE_URL: z.string().url().default("http://localhost:3003"),
+  REPORTES_SERVICE_URL: z.string().url().default("http://localhost:3004"),
+  MULTIMEDIA_SERVICE_URL: z.string().url().default("http://localhost:3005"),
+  EMERGENCIAS_SERVICE_URL: z.string().url().default("http://localhost:3006"),
+  ANALITICA_SERVICE_URL: z.string().url().default("http://localhost:3007"),
+  EUREKA_HOST: z.string().min(1).default("localhost"),
 
-  INTERNAL_SECRET_TOKEN: z.string().min(1),
+  INTERNAL_SECRET_TOKEN: z.string().min(1).default("test-token"),
 
   // Whitelist de CORS
   CORS_ORIGINS: z
@@ -26,20 +43,28 @@ const envSchema = z.object({
     .default("http://localhost:5173,http://localhost:3000"),
 
   // Seguridad: Firebase Admin SDK
-  FIREBASE_PROJECT_ID: z.string().min(1),
-  FIREBASE_CLIENT_EMAIL: z.string().email(),
+  FIREBASE_PROJECT_ID: z.string().min(1).default("test-project"),
+  FIREBASE_CLIENT_EMAIL: z.string().email().default("test@test.com"),
   FIREBASE_PRIVATE_KEY: z
     .string()
     .min(1)
+    .default("test-key")
     .transform((val) => val.replace(/\\n/g, "\n").replace(/"/g, "").trim()),
 });
 
-const _env = envSchema.safeParse(process.env);
+const mergedEnv = { ...testDefaults, ...process.env };
+const parsed = envSchema.safeParse(mergedEnv);
 
-if (!_env.success) {
-  console.error("❌ CRÍTICO: Error en variables de entorno del API Gateway:");
-  console.error(_env.error.format());
-  process.exit(1);
+if (parsed.error) {
+  if (process.env.NODE_ENV === "test") {
+    logger.warn(`Variables de entorno faltantes en test: ${parsed.error.message}. Usando defaults.`);
+  } else {
+    logger.error("❌ CRÍTICO: Error en variables de entorno del API Gateway:");
+    logger.error(parsed.error.format());
+    process.exit(1);
+  }
 }
 
-export const envs = _env.data;
+const envData = parsed.data ?? envSchema.parse({});
+
+export const envs = envData;

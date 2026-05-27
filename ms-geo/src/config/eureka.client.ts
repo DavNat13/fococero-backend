@@ -1,5 +1,6 @@
 // src/config/eureka.client.ts
 import { Eureka } from 'eureka-js-client';
+import { logger } from './logger';
 
 export const initEurekaClient = (appName: string, port: number) => {
   const eurekaHost = process.env.EUREKA_HOST || 'localhost';
@@ -33,9 +34,9 @@ export const initEurekaClient = (appName: string, port: number) => {
 
   client.start((error) => {
     if (error) {
-      console.error(`[Eureka Error] ${appName} falló al conectar con ${eurekaHost}:8761 ->`, error.message);
+      logger.error(`[Eureka Error] ${appName} falló al conectar con ${eurekaHost}:8761 -> ${error.message}`);
     } else {
-      console.log(`[Eureka Success] ${appName} registrado exitosamente en la malla.`);
+      logger.info(`[Eureka Success] ${appName} registrado exitosamente en la malla.`);
     }
   });
 

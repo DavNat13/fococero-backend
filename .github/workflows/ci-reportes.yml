@@ -35,11 +35,40 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Linter (If configured)
-        run: npm run lint --if-present
+      - name: Run Linter
+        run: npm run lint
 
-      - name: Run Tests (If configured)
-        run: npm run test --if-present
+      - name: Run Tests with Coverage
+        run: npm test -- --coverage
+        env:
+          NODE_ENV: test
+          PORT: 3004
+          DB_USER: test
+          DB_PASSWORD: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: reportes_db
+          EUREKA_HOST: localhost
+          API_GATEWAY_URL: http://localhost:3000
+          MULTIMEDIA_SERVICE_URL: http://localhost:3005
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID || 'test-project' }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL || 'test@test.com' }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY || 'test-key' }}
+          JWT_SECRET: test-jwt-secret
 
       - name: Build Project
         run: npm run build
+
+      # TODO: Uncomment when Docker secrets are configured (DOCKER_USERNAME, DOCKER_PASSWORD)
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
+      #
+      # - name: Build and Push Docker image
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     context: ./ms-reportes
+      #     push: true
+      #     tags: fococero/ms-reportes:latest

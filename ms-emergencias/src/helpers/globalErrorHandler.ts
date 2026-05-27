@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from './AppError';
 import { envs } from '../config/envs';
+import { Logger } from './logger';
 
 export const globalErrorHandler = (
     err: unknown,
@@ -29,7 +30,7 @@ export const globalErrorHandler = (
         });
     }
 
-    console.error('🚨 ERROR CRÍTICO:', err);
+    Logger.error('🚨 ERROR CRÍTICO:', err);
     return res.status(500).json({
         ok: false,
         message: 'Algo salió muy mal en el servidor',

@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import { envs } from "./envs";
+import { Logger } from "../helpers/logger.helper";
 
 export const dbPool = new Pool({
   host: envs.DB_HOST,
@@ -14,7 +15,7 @@ export const dbPool = new Pool({
 });
 
 dbPool.on("error", (err) => {
-  console.error("🔥 [DB] Fatal error en el Pool de Conexiones:", err);
+  Logger.error("🔥 [DB] Fatal error en el Pool de Conexiones:", err);
   process.exit(-1);
 });
 
@@ -22,7 +23,7 @@ export const checkDbConnection = async (): Promise<void> => {
   const client = await dbPool.connect();
   try {
     await client.query("SELECT 1");
-    console.log("📦 PostgreSQL [Analítica] Conectado Exitosamente");
+    Logger.info("📦 PostgreSQL [Analítica] Conectado Exitosamente");
   } finally {
     client.release();
   }

@@ -8,6 +8,7 @@ const isDocker = dbHostRaw === 'db-fococero';
 export const envs = {
     PORT: env.get('PORT').default(3004).asPortNumber(),
     NODE_ENV: env.get('NODE_ENV').default('development').asString(),
+    EUREKA_HOST: env.get('EUREKA_HOST').default('localhost').asString(),
 
     // Base de Datos
     DB_USER: env.get('DB_USER').required().asString(),
@@ -17,6 +18,9 @@ export const envs = {
     DB_PORT: isDocker
         ? env.get('DB_PORT').default(5432).asPortNumber()
         : env.get('DB_PORT_LOCAL').default(5433).asPortNumber(),
+
+    // URL del API Gateway (para CORS estricto)
+    API_GATEWAY_URL: env.get('API_GATEWAY_URL').default('http://localhost:3000').asString(),
 
     //URL del Microservicio de Multimedia 
     MULTIMEDIA_SERVICE_URL: env.get('MULTIMEDIA_SERVICE_URL').required().asString(),

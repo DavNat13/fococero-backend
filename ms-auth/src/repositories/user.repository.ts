@@ -2,6 +2,16 @@ import { pool } from '../config/database';
 import { Usuario } from '../models/user.model';
 import { UserRole, UserStatus } from '../models/user.enum';
 
+/**
+ * Columnas permitidas para actualización dinámica.
+ * Esta lista blanca (whitelist) previene SQL injection a través de nombres de columna
+ * y evita que el llamante pueda modificar columnas sensibles o inexistentes.
+ */
+const ALLOWED_UPDATE_COLUMNS = new Set([
+    'rut', 'nombre', 'apellido', 'email', 'telefono',
+    'firebase_uid', 'fcm_token', 'rol', 'estado',
+]);
+
 export class UserRepository {
     
     // --- 🔍 MÉTODOS DE BÚSQUEDA (READ) ---
@@ -95,7 +105,8 @@ export class UserRepository {
      * del usuario sin necesidad de crear un método por cada campo.
      */
     static async update(id: number, data: Partial<Usuario>): Promise<Usuario | null> {
-        const entries = Object.entries(data).filter(([_, v]) => v !== undefined);
+        const entries = Object.entries(data)
+            .filter(([key, v]) => v !== undefined && ALLOWED_UPDATE_COLUMNS.has(key));
         if (entries.length === 0) return null;
 
         const setClause = entries

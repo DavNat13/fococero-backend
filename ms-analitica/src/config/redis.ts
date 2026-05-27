@@ -1,5 +1,6 @@
 import { createClient } from "redis";
 import { envs } from "./envs";
+import { Logger } from "../helpers/logger.helper";
 
 class RedisCache {
   private static instance: RedisCache;
@@ -14,9 +15,9 @@ class RedisCache {
       },
     });
 
-    this.client.on("error", (err) => console.error("🔴 [Redis] Error:", err));
+    this.client.on("error", (err) => Logger.error("🔴 [Redis] Error:", err));
     this.client.on("ready", () =>
-      console.log("🟢 Redis [Caché] Conectado Exitosamente"),
+      Logger.info("🟢 Redis [Caché] Conectado Exitosamente"),
     );
   }
 

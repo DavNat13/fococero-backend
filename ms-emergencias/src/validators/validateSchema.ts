@@ -15,7 +15,7 @@ export const validateSchema = (schema: AnyZodObject) => {
                 return res.status(400).json({
                     ok: false,
                     errors: error.errors.map((e) => ({
-                        path: e.path[1],
+                        path: e.path.join('.'),
                         message: e.message,
                     })),
                 });

@@ -4,6 +4,7 @@ import { AlertaRepository } from '../repositories/alerta.repository';
 import { IAlerta, EstadoAlerta } from '../models/alerta.model';
 import { AppError } from '../helpers/appError';
 import { envs } from '../config/envs';
+import { logger } from '../config/logger';
 
 export class AlertaService {
     // 🟢 CREACIÓN
@@ -55,12 +56,12 @@ export class AlertaService {
                 },
             );
 
-            console.log(
+            logger.info(
                 `✅ Imagen ${id_multimedia} vinculada exitosamente a la alerta ${alertaId}`,
             );
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-            console.error(`⚠️ Error vinculando multimedia ${id_multimedia}:`, errorMessage);
+            logger.error(`⚠️ Error vinculando multimedia ${id_multimedia}: ${errorMessage}`);
         }
     }
 

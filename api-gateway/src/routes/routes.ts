@@ -5,6 +5,7 @@ import { createProxyMiddleware, Options } from "http-proxy-middleware";
 import { ClientRequest, IncomingMessage, ServerResponse } from "http";
 import { Socket } from "net";
 import { envs } from "../config/envs";
+import { logger } from "../config/logger";
 import { verifyToken } from "../middlewares/auth.middleware";
 import { traceIdMiddleware } from "../middlewares/traceId";
 
@@ -49,7 +50,7 @@ const getProxyOptions = (target: string): Options => ({
 
     error: (err: Error, req: IncomingMessage, res: ServerResponse | Socket) => {
       const traceId = req.headers["x-trace-id"] || "N/A";
-      console.error(
+      logger.error(
         `🚨 [Proxy Error | Trace: ${traceId}] No se pudo alcanzar: ${target} - ${err.message}`,
       );
 
@@ -99,6 +100,7 @@ appRoutes.use(
 appRoutes.use(
   "/api/geo",
   traceIdMiddleware,
+  verifyToken,
   createProxyMiddleware(getProxyOptions(envs.GEO_SERVICE_URL)),
 );
 
@@ -108,6 +110,7 @@ appRoutes.use(
 appRoutes.use(
   "/api/reportes",
   traceIdMiddleware,
+  verifyToken,
   createProxyMiddleware(getProxyOptions(envs.REPORTES_SERVICE_URL)),
 );
 

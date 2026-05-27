@@ -1,5 +1,6 @@
 import { Pool, PoolConfig } from 'pg';
 import { envs } from './envs';
+import { Logger } from '../helpers/logger';
 
 /**
  * Configuración del Pool de conexiones.
@@ -25,7 +26,7 @@ export const pool = new Pool(poolConfig);
  * Evita que el microservicio colapse si la base de datos se reinicia inesperadamente.
  */
 pool.on('error', (err) => {
-    console.error('🚨 [ms-emergencias] Error inesperado en el pool de PostgreSQL:', err);
+    Logger.error('🚨 [ms-emergencias] Error inesperado en el pool de PostgreSQL:', err);
     // En producción, aquí se dispararía una alerta a Sentry o CloudWatch
 });
 
@@ -36,11 +37,11 @@ pool.on('error', (err) => {
 export const testDbConnection = async (): Promise<boolean> => {
     try {
         const client = await pool.connect();
-        console.log('✅ [ms-emergencias] Conexión a PostgreSQL establecida con éxito.');
+        Logger.info('✅ [ms-emergencias] Conexión a PostgreSQL establecida con éxito.');
         client.release();
         return true;
     } catch (error) {
-        console.error('❌ [ms-emergencias] Error conectando a PostgreSQL:', error);
+        Logger.error('❌ [ms-emergencias] Error conectando a PostgreSQL:', error);
         return false;
     }
 };

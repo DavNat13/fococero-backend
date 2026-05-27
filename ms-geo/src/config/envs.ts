@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import * as env from 'env-var';
 
-const dbHostRaw = env.get('DB_HOST').required().asString();
+const dbHostRaw = env.get('DB_HOST').default('localhost').asString();
 const isDocker = dbHostRaw === 'db-fococero';
 
 export const envs = {
@@ -13,6 +13,7 @@ export const envs = {
     DB_USER: env.get('DB_USER').required().asString(),
     DB_PASSWORD: env.get('DB_PASSWORD').required().asString(),
     DB_NAME: env.get('DB_NAME').required().asString(),
+    EUREKA_HOST: env.get('EUREKA_HOST').default('localhost').asString(),
 
     /**
      * Si detecta la red de Docker, usa el host interno y puerto 5432.
@@ -22,6 +23,9 @@ export const envs = {
     DB_PORT: isDocker
         ? env.get('DB_PORT').default(5432).asPortNumber()
         : env.get('DB_PORT_LOCAL').default(5433).asPortNumber(),
+
+    // URL del API Gateway (para CORS estricto)
+    API_GATEWAY_URL: env.get('API_GATEWAY_URL').default('http://localhost:3000').asString(),
 
     // Firebase
     FIREBASE_PROJECT_ID: env.get('FIREBASE_PROJECT_ID').required().asString(),

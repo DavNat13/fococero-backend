@@ -1,5 +1,4 @@
 // ms-multimedia/src/index.ts
-
 import express, { Application } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -7,60 +6,57 @@ import morgan from 'morgan';
 import swaggerUi from 'swagger-ui-express';
 
 // ==========================================
-// CONFIGURACIONES E INICIALIZACIONES GLOBALES
+// CONFIGURACIONES E INICIALIZACIONES
 // ==========================================
 import { envs } from './config/envs';
-import './config/db'; // Al importarlo, ejecuta la conexión al Pool de PostgreSQL
-import './config/firebase'; // Al importarlo, inicializa la conexión con Google Cloud
+import './config/db'; 
+import './config/firebase'; 
+import { eurekaClient, initEureka } from './config/eureka';
 
 // ==========================================
-// RUTAS Y DOCUMENTACIÓN
+// RUTAS, DOCS Y CRON
 // ==========================================
 import multimediaRoutes from './routes/multimedia.routes';
 import { swaggerSpec } from './docs/swagger';
-
 import { iniciarBarrendero } from './cron/barrendero';
-
-// ==========================================
-// MIDDLEWARES PERSONALIZADOS
-// ==========================================
 import { errorHandler } from './middlewares/errorHandler';
+import { metricsMiddleware, metricsHandler } from './middlewares/metrics.middleware';
+import { logger } from './config/logger';
 
-// Inicializamos la aplicación de Express
 const app: Application = express();
 
-// ==========================================
-// 1. MIDDLEWARES GLOBALES (Seguridad y Logs)
-// ==========================================
-// 🛡️ Helmet oculta información del servidor y bloquea ataques comunes (XSS, Clickjacking)
-app.use(helmet());
-
-// 🌐 CORS permite que el API Gateway o el Frontend puedan comunicarse con nosotros
-app.use(cors());
-
-// 📝 Morgan nos da un log visual en la consola de cada petición (ej. "POST /upload 201 45ms")
+// 1. MIDDLEWARES GLOBALES
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'"],
+                imgSrc: ["'self'", "data:"],
+            },
+        },
+    }),
+);
+app.use(cors({ origin: envs.GATEWAY_URL || 'http://localhost:3000' }));
 app.use(morgan('dev'));
-
-// 📦 Parseadores básicos para JSON y URL-encoded (Multer se encarga del multipart/form-data)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ==========================================
-// 2. DOCUMENTACIÓN (Swagger UI)
-// ==========================================
+// 2. MONITOREO DE MÉTRICAS (PROMETHEUS)
+app.use(metricsMiddleware);
+
+// 3. DOCUMENTACIÓN
 app.use(
     '/api-docs',
     swaggerUi.serve,
     swaggerUi.setup(swaggerSpec, {
         customSiteTitle: 'FocoCero API - Multimedia',
-        customCss: '.swagger-ui .topbar { display: none }', // Oculta la barra verde fea de Swagger
+        customCss: '.swagger-ui .topbar { display: none }',
     }),
 );
 
-// ==========================================
-// 3. RUTAS PRINCIPALES
-// ==========================================
-// Ruta "Healthcheck": Vital para Docker y Kubernetes para saber si el contenedor está vivo
+// 4. RUTAS PRINCIPALES
 app.get('/health', (_req, res) => {
     res.status(200).json({
         status: 'OK',
@@ -69,31 +65,71 @@ app.get('/health', (_req, res) => {
     });
 });
 
-// Montamos todas nuestras rutas bajo el prefijo estándar de la API
+// 📊 Endpoint de métricas Prometheus
+app.get('/metrics', metricsHandler);
+
 app.use('/api/v1/multimedia', multimediaRoutes);
 
-// ==========================================
-// 4. RED DE SEGURIDAD (Manejador de Errores)
-// ==========================================
-// ⚠️ IMPORTANTE: Este middleware DEBE ir siempre al final, después de todas las rutas
+// 5. RED DE SEGURIDAD (Siempre al final)
 app.use(errorHandler);
 
-// ==========================================
-// 5. ENCENDIDO DEL SERVIDOR
-// ==========================================
-const startServer = () => {
-    app.listen(envs.PORT, () => {
-        console.log('\n=============================================');
-        console.log(`🚀 [ms-multimedia] Encendido y Operativo!`);
-        console.log(`🌐 Ambiente: ${envs.NODE_ENV.toUpperCase()}`);
-        console.log(`📡 Puerto: ${envs.PORT}`);
-        console.log(`📚 Documentación: http://localhost:${envs.PORT}/api-docs`);
-        console.log('=============================================\n');
+// ============================================================================
+// 🚀 BOOTSTRAP Y CICLO DE VIDA (SENIOR PATTERN)
+// ============================================================================
+async function bootstrap() {
+    try {
+        logger.info(`====================================================`);
+        logger.info(`🎥 INICIANDO MS-MULTIMEDIA (FocoCero Process)`);
+        logger.info(`====================================================`);
 
-        // Iniciamos el sistema de limpieza automática (Barrendero)
-        iniciarBarrendero();
-        console.log('=============================================\n');
-    });
-};
+        const server = app.listen(envs.PORT, () => {
+            logger.info(`🚀 [SERVER] Escuchando en puerto: ${envs.PORT}`);
+            logger.info(`🌐 [ENV] Modo: ${envs.NODE_ENV.toUpperCase()}`);
+            logger.info(`📚 [DOCS] http://localhost:${envs.PORT}/api-docs`);
+            
+            // Iniciar procesos en background
+            iniciarBarrendero();
+            logger.info(`🧹 [CRON] Sistema Barrendero activado.`);
 
-startServer();
+            // Registro en Service Discovery
+            initEureka();
+        });
+
+        // ============================================================================
+        // 🛑 GRACEFUL SHUTDOWN
+        // ============================================================================
+        const handleShutdown = async (signal: string) => {
+            logger.info(`⚠️  [${signal}] Señal de apagado recibida. Iniciando Graceful Shutdown...`);
+
+            // 1. Salir de Eureka para no recibir peticiones con archivos a medio subir
+            eurekaClient.stop((eurekaError) => {
+                if (eurekaError) logger.error("❌ [EUREKA] Error al desregistrar", eurekaError);
+                else logger.info("✅ [EUREKA] Retirado de la malla de servicios.");
+
+                // 2. Apagar servidor HTTP
+                server.close(() => {
+                    logger.info("✅ [SERVER] Servidor HTTP detenido.");
+                    
+                    // Nota: Si en el futuro exportas el pool de ./config/db, ciérralo aquí.
+                    
+                    logger.info("👋 [SISTEMA] Apagado completado de forma segura.");
+                    process.exit(0);
+                });
+            });
+
+            setTimeout(() => {
+                logger.error("🔥 [FATAL] El cierre tardó demasiado. Forzando salida.");
+                process.exit(1);
+            }, 10000);
+        };
+
+        process.on("SIGINT", () => handleShutdown("SIGINT"));
+        process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+
+    } catch (error) {
+        logger.error(`❌ [FATAL] Error durante el arranque:`, error);
+        process.exit(1);
+    }
+}
+
+bootstrap();

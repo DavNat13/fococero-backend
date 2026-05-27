@@ -1,6 +1,7 @@
 // ms-auth/src/config/firebase.ts
 import * as admin from 'firebase-admin';
 import { envs } from './envs';
+import { logger } from './logger';
 
 /**
  * Inicialización de Firebase con Patrón Singleton y Type Guard.
@@ -18,13 +19,13 @@ const initializeFirebase = () => {
                 privateKey: envs.FIREBASE_PRIVATE_KEY,
             }),
         });
-        console.log('🔥 [Firebase] Admin SDK inicializado exitosamente (ms-auth)');
+        logger.info('🔥 [Firebase] Admin SDK inicializado exitosamente (ms-auth)');
         return app;
     } catch (error: unknown) {
         if (error instanceof Error) {
-            console.error('❌ [Firebase] Error inicializando Admin SDK:', error.message);
+            logger.error({ err: error }, '❌ [Firebase] Error inicializando Admin SDK');
         } else {
-            console.error('❌ [Firebase] Error inicializando Admin SDK (Tipo Desconocido):', error);
+            logger.error('❌ [Firebase] Error inicializando Admin SDK (Tipo Desconocido): ' + String(error));
         }
 
         // En ms-auth, si Firebase falla, el servicio entero es inútil. Fallo determinista.

@@ -55,7 +55,7 @@ export class DespachoRepository {
                     codigo_error_http = $4,
                     error_detalle = $5,
                     finalizado_at = CURRENT_TIMESTAMP,
-                    intentos_actuales = intentos_actuales + 1
+                    updated_at = CURRENT_TIMESTAMP
                 WHERE id = $6;
             `,
             values: [
@@ -70,13 +70,22 @@ export class DespachoRepository {
         await pool.query(query);
     }
 
-    static async findByCorrelationId(correlation_id: string): Promise<IDespacho | null> {
+    static async findById(id: string): Promise<IDespacho | null> {
         const query: QueryConfig = {
-            text: 'SELECT * FROM logs_despacho WHERE correlation_id = $1 LIMIT 1;',
-            values: [correlation_id],
+            text: 'SELECT * FROM logs_despacho WHERE id = $1;',
+            values: [id],
         };
         const result = await pool.query<IDespacho>(query);
         return result.rows[0] || null;
+    }
+
+    static async findByCorrelationId(correlation_id: string): Promise<IDespacho[]> {
+        const query: QueryConfig = {
+            text: 'SELECT * FROM logs_despacho WHERE correlation_id = $1 ORDER BY created_at ASC;',
+            values: [correlation_id],
+        };
+        const result = await pool.query<IDespacho>(query);
+        return result.rows;
     }
 
     static async getPendingRetries(): Promise<IDespacho[]> {

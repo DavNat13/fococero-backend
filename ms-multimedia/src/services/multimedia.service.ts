@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import { bucket } from '../config/firebase';
 import { ContextoMultimedia } from '../models/archivo.model';
+import { logger } from '../config/logger';
 
 export class MultimediaService {
     /**
@@ -45,7 +46,7 @@ export class MultimediaService {
 
             return publicUrl;
         } catch (error) {
-            console.error('🔥 Error en el motor de procesamiento (Sharp/Firebase):', error);
+            logger.error('🔥 Error en el motor de procesamiento (Sharp/Firebase):', error);
             throw new Error('Fallo interno al procesar y subir la imagen a la nube.');
         }
     }

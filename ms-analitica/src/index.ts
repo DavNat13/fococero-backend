@@ -2,56 +2,91 @@ import app from "./app";
 import { envs } from "./config/envs";
 import { dbPool, checkDbConnection } from "./config/db";
 import { redisCache } from "./config/redis";
+import { eurekaClient, initEureka } from "./config/eureka";
+import { Logger } from "./helpers/logger.helper";
 
 const PORT = envs.PORT || 3007;
 
-// ============================================================================
-// 🚀 ARRANQUE DEL SERVIDOR
-// ============================================================================
-const server = app.listen(PORT, async () => {
-  console.log(`\n====================================================`);
-  console.log(`📊 MICROSERVICIO MS-ANALITICA (FocoCero) ACTIVADO`);
-  console.log(`📡 Puerto: ${PORT} | Entorno: ${envs.NODE_ENV}`);
+/**
+ * Función principal de arranque (Bootstrap)
+ */
+async function bootstrap() {
+  try {
+    Logger.info(`====================================================`);
+    Logger.info(`📊 INICIANDO MS-ANALITICA (FocoCero Process)`);
+    Logger.info(`====================================================`);
 
-  // 1. Verificación de salud de la Base de Datos
-  await checkDbConnection(); // Usa el helper de tu db.ts
+    // 1. Verificación de Salud de la Infraestructura
+    await checkDbConnection();
+    Logger.info(`✅ [POSTGRES] Conexión establecida.`);
 
-  console.log(`🧠 Inteligencia Proactiva y Análisis Espacial Listos`);
-  console.log(`🛡️  Seguridad: Escudos Zero-Trust y Cache Activos`);
-  console.log(`📖 Docs: http://localhost:${PORT}/api/v1/analitica/docs`);
-  console.log(`====================================================\n`);
-});
+    // 2. Encendido del Servidor
+    const server = app.listen(PORT, () => {
+      Logger.info(`🚀 [SERVER] Escuchando en puerto: ${PORT}`);
+      Logger.info(`📡 [ENV] Modo: ${envs.NODE_ENV}`);
+      Logger.info(`📖 [DOCS] http://localhost:${PORT}/api/v1/analitica/docs`);
 
-// ============================================================================
-// 🛑 CIERRE CONTROLADO (GRACEFUL SHUTDOWN)
-// ============================================================================
-const gracefulShutdown = async (signal: string) => {
-  console.log(`\n🛑 Apagando ms-analitica (${signal})...`);
+      // 3. Registro en Service Discovery
+      initEureka();
+    });
 
-  server.close(async () => {
-    try {
-      // Cerrar Pool de PostgreSQL
-      await dbPool.end();
-      console.log("✅ Conexión a PostgreSQL cerrada.");
+    // ============================================================================
+    // 🛑 GESTIÓN DE CIERRE CONTROLADO (ORQUESTACIÓN SENIOR)
+    // ============================================================================
+    const handleShutdown = async (signal: string) => {
+      Logger.info(
+        `⚠️  [${signal}] Señal de apagado recibida. Iniciando Graceful Shutdown...`,
+      );
 
-      // Cerrar Redis de forma segura
-      const wrapper = redisCache as unknown as {
-        client?: { quit: () => Promise<void> };
-      };
-      if (wrapper.client && typeof wrapper.client.quit === "function") {
-        await wrapper.client.quit();
-        console.log("✅ Conexión a Redis cerrada.");
-      }
+      // Paso A: Retirarse de Eureka (Inmediato para el Gateway)
+      eurekaClient.stop((eurekaError) => {
+        if (eurekaError)
+          Logger.error("❌ [EUREKA] Error al desregistrar:", eurekaError);
+        else Logger.info("✅ [EUREKA] Retirado de la malla de servicios.");
 
-      process.exit(0);
-    } catch (err) {
-      console.error("❌ Error durante el cierre:", err);
-      process.exit(1);
-    }
-  });
+        // Paso B: Dejar de aceptar nuevas conexiones HTTP
+        server.close(async () => {
+          Logger.info("✅ [SERVER] Servidor HTTP detenido.");
 
-  setTimeout(() => process.exit(1), 10000);
-};
+          try {
+            // Paso C: Cerrar Redis (Usa el wrapper del index original)
+            const wrapper = redisCache as any;
+            if (wrapper.client?.quit) {
+              await wrapper.client.quit();
+              Logger.info("✅ [REDIS] Conexión cerrada.");
+            }
 
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+            // Paso D: Cerrar PostgreSQL
+            await dbPool.end();
+            Logger.info("✅ [POSTGRES] Pool de conexiones liberado.");
+
+            Logger.info("👋 [SISTEMA] Apagado completado de forma segura.");
+            process.exit(0);
+          } catch (err) {
+            Logger.error(
+              "❌ [ERROR] Fallo durante el cierre de recursos:",
+              err,
+            );
+            process.exit(1);
+          }
+        });
+      });
+
+      // Timeout de seguridad: Si no cierra en 10s, forzar salida
+      setTimeout(() => {
+        Logger.error("🔥 [FATAL] El cierre tardó demasiado. Forzando salida.");
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on("SIGINT", () => handleShutdown("SIGINT"));
+    process.on("SIGTERM", () => handleShutdown("SIGTERM"));
+  } catch (criticalError) {
+    const errorMsg = criticalError instanceof Error ? criticalError.message : String(criticalError);
+    Logger.error(`❌ [FATAL] Error durante el arranque: ${errorMsg}`, criticalError);
+    process.exit(1);
+  }
+}
+
+// Ejecutar el proceso
+bootstrap();

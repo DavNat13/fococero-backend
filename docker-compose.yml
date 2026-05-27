@@ -1,23 +1,17 @@
-# Docker Compose FocoCero - Arquitectura Final Unificada
-version: "3.8"
-
 services:
-  # ==========================================
-  # 🗄️ BASE DE DATOS (POSTGRESQL + POSTGIS)
-  # ==========================================
   db-fococero:
     image: postgis/postgis:15-3.3
     container_name: fococero-db
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: fococero_admin
-      POSTGRES_PASSWORD: foco0-1234
-      POSTGRES_DB: fococero_default_db
-      POSTGRES_MULTIPLE_DATABASES: auth_db,geo_db,alertas_db,reportes_db,multimedia_db,emergencias_db,analitica_db
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_MULTIPLE_DATABASES=${POSTGRES_MULTIPLE_DATABASES}
     ports:
-      - "5433:5432"
+      - "${DB_PORT_EXTERNAL}:5432"
     volumes:
       - fococero_pgdata:/var/lib/postgresql/data
-      # Inyectamos el script de creación múltiple
       - ./init-multiple-databases.sh:/docker-entrypoint-initdb.d/00-init-databases.sh
       - ./ms-auth/init.sql:/docker-entrypoint-initdb.d/01-init-auth.sql
       - ./ms-geo/database/init.sql:/docker-entrypoint-initdb.d/02-init-geo.sql
@@ -33,43 +27,64 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   pgadmin:
     image: dpage/pgadmin4
     container_name: fococero-pgadmin
+    restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
     ports:
       - "5050:80"
+    volumes:
+      - fococero_pgadmin_data:/var/lib/pgadmin
     depends_on:
       db-fococero:
         condition: service_healthy
     networks:
       - fococero-network
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # ==========================================
-  # 🧠 CACHÉ Y BLOQUEOS (REDIS)
-  # ==========================================
   redis-fococero:
     image: redis:7-alpine
     container_name: fococero-redis
+    restart: unless-stopped
     expose:
       - "6379"
+    volumes:
+      - fococero_redis_data:/data
     networks:
       - fococero-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 5s
+      timeout: 3s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # ==========================================
-  # 🌐 SERVICE DISCOVERY (NETFLIX EUREKA)
-  # ==========================================
   eureka-server:
     image: steeltoeoss/eureka-server:latest
     container_name: fococero-eureka
+    restart: unless-stopped
     ports:
       - "8761:8761"
     environment:
@@ -77,62 +92,100 @@ services:
       - EUREKA_CLIENT_FETCHREGISTRY=false
     networks:
       - fococero-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8761/eureka/apps || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # ==========================================
-  # 🚦 API GATEWAY
-  # ==========================================
   api-gateway:
     build: ./api-gateway
     container_name: api-gateway
+    restart: unless-stopped
+    init: true
     ports:
       - "3000:3000"
     env_file: ./api-gateway/.env
-    environment:
-      - EUREKA_HOST=eureka-server
-      - AUTH_SERVICE_URL=http://ms-auth:3001
-      - GEO_SERVICE_URL=http://ms-geo:3002
-      - ALERTAS_SERVICE_URL=http://ms-alertas:3003
-      - REPORTES_SERVICE_URL=http://ms-reportes:3004
-      - MULTIMEDIA_SERVICE_URL=http://ms-multimedia:3005
-      - EMERGENCIAS_SERVICE_URL=http://ms-emergencias:3006
-      - ANALITICA_SERVICE_URL=http://ms-analitica:3007
-      - INTERNAL_SECRET_TOKEN=SuperSecretFococeroToken2026
     depends_on:
       eureka-server:
-        condition: service_started
+        condition: service_healthy
+      db-fococero:
+        condition: service_healthy
       ms-auth:
-        condition: service_started
+        condition: service_healthy
       ms-geo:
-        condition: service_started
+        condition: service_healthy
       ms-alertas:
-        condition: service_started
+        condition: service_healthy
       ms-reportes:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fococero-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  # ==========================================
-  # 🧱 MICROSERVICIOS (Red Interna Privada)
-  # ==========================================
   ms-auth:
     build: ./ms-auth
     container_name: ms-auth
+    restart: unless-stopped
+    init: true
     expose:
       - "3001"
     env_file: ./ms-auth/.env
-    environment:
-      - EUREKA_HOST=eureka-server
     depends_on:
       db-fococero:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fococero-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ms-analitica:
     build: ./ms-analitica
     container_name: ms-analitica
+    restart: unless-stopped
+    init: true
     expose:
       - "3007"
     env_file: ./ms-analitica/.env
@@ -141,89 +194,194 @@ services:
         condition: service_healthy
       redis-fococero:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
     networks:
       - fococero-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3007/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ms-geo:
     build: ./ms-geo
     container_name: ms-geo
+    restart: unless-stopped
+    init: true
     expose:
       - "3002"
     env_file: ./ms-geo/.env
-    environment:
-      - EUREKA_HOST=eureka-server
     depends_on:
       db-fococero:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fococero-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ms-alertas:
     build: ./ms-alertas
     container_name: ms-alertas
+    restart: unless-stopped
+    init: true
     expose:
       - "3003"
     env_file: ./ms-alertas/.env
-    environment:
-      - EUREKA_HOST=eureka-server
-      - MULTIMEDIA_SERVICE_URL=http://ms-multimedia:3005
     depends_on:
       db-fococero:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fococero-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ms-reportes:
     build: ./ms-reportes
     container_name: ms-reportes
+    restart: unless-stopped
+    init: true
     expose:
       - "3004"
     env_file: ./ms-reportes/.env
-    environment:
-      - EUREKA_HOST=eureka-server
-      - MULTIMEDIA_SERVICE_URL=http://ms-multimedia:3005
     depends_on:
       db-fococero:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     networks:
       - fococero-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ms-multimedia:
     build: ./ms-multimedia
     container_name: ms-multimedia
+    restart: unless-stopped
+    init: true
     expose:
       - "3005"
     env_file: ./ms-multimedia/.env
     depends_on:
       db-fococero:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
     networks:
       - fococero-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3005/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   ms-emergencias:
     build: ./ms-emergencias
     container_name: ms-emergencias
+    restart: unless-stopped
+    init: true
     expose:
       - "3006"
     env_file: ./ms-emergencias/.env
     depends_on:
       db-fococero:
         condition: service_healthy
+      eureka-server:
+        condition: service_healthy
     networks:
       - fococero-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3006/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-# ==========================================
-# 💾 VOLUMEN Y RED
-# ==========================================
 volumes:
   fococero_pgdata:
     name: fococero_pgdata
+  fococero_redis_data:
+    name: fococero_redis_data
+  fococero_pgadmin_data:
+    name: fococero_pgadmin_data
 
 networks:
   fococero-network:
