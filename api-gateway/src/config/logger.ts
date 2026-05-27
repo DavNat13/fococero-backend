@@ -1,5 +1,8 @@
 import morgan from "morgan";
-import { envs } from "./envs";
+import pino from "pino";
+
+// NOTA: No importamos { envs } desde "./envs" para evitar dependencia circular.
+// Usamos process.env directamente, que ya ha sido poblado por dotenv en envs.ts.
 
 // Formato estructurado para sistemas de logs (Datadog, CloudWatch, ELK)
 const jsonFormat = (tokens: any, req: any, res: any) => {
@@ -15,5 +18,11 @@ const jsonFormat = (tokens: any, req: any, res: any) => {
   });
 };
 
+const nodeEnv = process.env.NODE_ENV || "development";
+
 export const morganLogger =
-  envs.NODE_ENV === "production" ? morgan(jsonFormat) : morgan("dev");
+  nodeEnv === "production" ? morgan(jsonFormat) : morgan("dev");
+
+export const logger = pino({
+  level: nodeEnv === "test" ? "silent" : "info",
+});

@@ -1,8 +1,9 @@
 import { AxiosError } from 'axios';
-import { httpClient } from '../config/httpClient';
+import { externalHttpClient } from '../config/httpClient';
 import { envs } from '../config/envs';
 import { DespachoRepository } from '../repositories/despacho.repository';
 import { AppError } from '../helpers/AppError';
+import { Logger } from '../helpers/logger';
 import {
     OrganismoType,
     DespachoStatus,
@@ -10,18 +11,34 @@ import {
     IDespacho,
 } from '../models/despacho.model';
 
+const BATCH_CONCURRENCY = 3;
+
+async function runBatch<T>(
+    items: T[],
+    fn: (item: T) => Promise<void>,
+    batchSize: number,
+): Promise<PromiseSettledResult<void>[]> {
+    const results: PromiseSettledResult<void>[] = [];
+    for (let i = 0; i < items.length; i += batchSize) {
+        const batch = items.slice(i, i + batchSize);
+        const batchResults = await Promise.allSettled(batch.map(fn));
+        results.push(...batchResults);
+    }
+    return results;
+}
+
 export class DespachoService {
     /**
      * Procesa un despacho de emergencia hacia un organismo externo.
      * Garantiza el registro en base de datos antes de la llamada HTTP para evitar pérdida de trazabilidad.
      */
     static async procesarDespacho(data: ICreateDespachoDTO): Promise<IDespacho> {
-        // 1. Registro inicial atómico (Estado PENDIENTE)
+        this.validateEndpointUrl(data.endpoint_url);
+
         const log = await DespachoRepository.create(data);
 
         try {
-            // 2. Ejecutar la llamada al organismo externo
-            const { data: responseBody, duration_ms } = await httpClient.post(
+            const { data: responseBody, duration_ms } = await externalHttpClient.post(
                 data.endpoint_url,
                 data.request_payload,
                 {
@@ -30,58 +47,52 @@ export class DespachoService {
                 },
             );
 
-            // 3. Éxito: Actualizar log con payload de respuesta y métricas
             await DespachoRepository.finish(log.id, {
                 estado: DespachoStatus.EXITOSO,
                 response_payload: responseBody,
                 duracion_ms: duration_ms || 0,
             });
         } catch (error) {
-            // 4. Fallo: Delegar al manejador centralizado
             await this.handleDespachoError(log.id, data.organismo, error);
         }
 
-        // 5. Retornar el log final actualizado
-        const finalLog = await DespachoRepository.findByCorrelationId(data.correlation_id);
+        const finalLogs = await DespachoRepository.findByCorrelationId(data.correlation_id);
+        const finalLog = Array.isArray(finalLogs)
+            ? finalLogs.find((l) => l.organismo === data.organismo) || finalLogs[0]
+            : finalLogs;
         if (!finalLog)
             throw new AppError('Error crítico al recuperar el log final del despacho', 500);
 
         return finalLog;
     }
 
-    /**
-     * Ejecuta reintentos pendientes de forma concurrente para maximizar el throughput.
-     * Ideal para ser consumido por un CronJob.
-     */
     static async reintentarDespachosFallidos(): Promise<void> {
         const fallidos = await DespachoRepository.getPendingRetries();
         if (fallidos.length === 0) return;
 
-        console.log(`🔄 Iniciando reintento de ${fallidos.length} despachos...`);
+        Logger.info(`🔄 Iniciando reintento de ${fallidos.length} despachos...`);
 
-        // Ejecución en paralelo: evita cuellos de botella si un organismo responde lento
-        const results = await Promise.allSettled(
-            fallidos.map((d) =>
-                this.procesarDespacho({
+        const results = await runBatch(
+            fallidos,
+            async (d) => {
+                await this.procesarDespacho({
                     alerta_id: d.alerta_id,
                     correlation_id: d.correlation_id,
                     organismo: d.organismo,
                     prioridad: d.prioridad,
                     request_payload: d.request_payload,
                     endpoint_url: d.endpoint_url,
-                }),
-            ),
+                });
+            },
+            BATCH_CONCURRENCY,
         );
 
         const rejected = results.filter((r) => r.status === 'rejected');
         if (rejected.length > 0) {
-            console.error(`❌ ${rejected.length} reintentos fallaron nuevamente en esta ronda.`);
+            Logger.error(`❌ ${rejected.length} reintentos fallaron nuevamente en esta ronda.`);
         }
     }
 
-    /**
-     * Centraliza el mapeo y persistencia de errores de integración de forma segura (Tipado Exhaustivo).
-     */
     private static async handleDespachoError(
         logId: string,
         organismo: string,
@@ -97,12 +108,10 @@ export class DespachoService {
             responseData = error.response?.data || null;
             errorMsg = responseData?.message || error.message;
 
-            // Intersección de tipos: respeta la regla noImplicitAny mientras lee la métrica inyectada
             const customError = error as AxiosError & { duration_ms?: number };
             duration = customError.duration_ms || 0;
         }
 
-        // Actualizar el registro para permitir un futuro reintento
         await DespachoRepository.finish(logId, {
             estado: DespachoStatus.FALLIDO,
             response_payload: responseData,
@@ -114,9 +123,6 @@ export class DespachoService {
         throw new AppError(`Fallo crítico en despacho a ${organismo}: ${errorMsg}`, statusCode);
     }
 
-    /**
-     * Resuelve de forma segura la API Key correcta basada en el mapeo de organismos.
-     */
     private static getApiKey(organismo: OrganismoType): string {
         const keyMap: Record<OrganismoType, string | undefined> = {
             [OrganismoType.BOMBEROS]: envs.BOMBEROS_API_KEY,
@@ -131,6 +137,20 @@ export class DespachoService {
             [OrganismoType.ARMADA]: undefined,
             [OrganismoType.SERVICIOS_PUBLICOS]: undefined,
         };
-        return keyMap[organismo] ?? '';
+        const key = keyMap[organismo];
+        if (!key) {
+            throw new AppError(`Organismo no configurado: ${organismo}`, 501);
+        }
+        return key;
+    }
+
+    private static validateEndpointUrl(url: string): void {
+        const allowedPatterns = [
+            /^https:\/\/(api\.)?(bomberos|conaf|carabineros|senapred)\.cl\//,
+        ];
+        const isAllowed = allowedPatterns.some((pattern) => pattern.test(url));
+        if (!isAllowed) {
+            throw new AppError(`URL de endpoint no permitida: ${url}`, 400);
+        }
     }
 }

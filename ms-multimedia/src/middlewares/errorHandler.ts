@@ -3,12 +3,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { MulterError } from 'multer';
 import { envs } from '../config/envs';
+import { logger } from '../config/logger';
 
 import { AppError } from '../helpers/error.helper';
 import { errorResponse } from '../helpers/response.helper';
 
 export const errorHandler = (err: Error, req: Request, res: Response, _next: NextFunction) => {
-    console.error('🔥 [Error Middleware]:', err.message);
+    logger.error('🔥 [Error Middleware]:', err.message);
 
     if (err instanceof AppError) {
         return errorResponse(res, err.statusCode, err.message);

@@ -20,17 +20,33 @@ import multimediaRoutes from './routes/multimedia.routes';
 import { swaggerSpec } from './docs/swagger';
 import { iniciarBarrendero } from './cron/barrendero';
 import { errorHandler } from './middlewares/errorHandler';
+import { metricsMiddleware, metricsHandler } from './middlewares/metrics.middleware';
+import { logger } from './config/logger';
 
 const app: Application = express();
 
 // 1. MIDDLEWARES GLOBALES
-app.use(helmet());
-app.use(cors());
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'"],
+                imgSrc: ["'self'", "data:"],
+            },
+        },
+    }),
+);
+app.use(cors({ origin: envs.GATEWAY_URL || 'http://localhost:3000' }));
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// 2. DOCUMENTACIÓN
+// 2. MONITOREO DE MÉTRICAS (PROMETHEUS)
+app.use(metricsMiddleware);
+
+// 3. DOCUMENTACIÓN
 app.use(
     '/api-docs',
     swaggerUi.serve,
@@ -40,7 +56,7 @@ app.use(
     }),
 );
 
-// 3. RUTAS PRINCIPALES Y HEALTHCHECK
+// 4. RUTAS PRINCIPALES
 app.get('/health', (_req, res) => {
     res.status(200).json({
         status: 'OK',
@@ -48,9 +64,13 @@ app.get('/health', (_req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
+
+// 📊 Endpoint de métricas Prometheus
+app.get('/metrics', metricsHandler);
+
 app.use('/api/v1/multimedia', multimediaRoutes);
 
-// 4. RED DE SEGURIDAD (Siempre al final)
+// 5. RED DE SEGURIDAD (Siempre al final)
 app.use(errorHandler);
 
 // ============================================================================
@@ -58,18 +78,18 @@ app.use(errorHandler);
 // ============================================================================
 async function bootstrap() {
     try {
-        console.log(`\n====================================================`);
-        console.log(`🎥 INICIANDO MS-MULTIMEDIA (FocoCero Process)`);
-        console.log(`====================================================`);
+        logger.info(`====================================================`);
+        logger.info(`🎥 INICIANDO MS-MULTIMEDIA (FocoCero Process)`);
+        logger.info(`====================================================`);
 
         const server = app.listen(envs.PORT, () => {
-            console.log(`🚀 [SERVER] Escuchando en puerto: ${envs.PORT}`);
-            console.log(`🌐 [ENV] Modo: ${envs.NODE_ENV.toUpperCase()}`);
-            console.log(`📚 [DOCS] http://localhost:${envs.PORT}/api-docs`);
+            logger.info(`🚀 [SERVER] Escuchando en puerto: ${envs.PORT}`);
+            logger.info(`🌐 [ENV] Modo: ${envs.NODE_ENV.toUpperCase()}`);
+            logger.info(`📚 [DOCS] http://localhost:${envs.PORT}/api-docs`);
             
             // Iniciar procesos en background
             iniciarBarrendero();
-            console.log(`🧹 [CRON] Sistema Barrendero activado.`);
+            logger.info(`🧹 [CRON] Sistema Barrendero activado.`);
 
             // Registro en Service Discovery
             initEureka();
@@ -79,26 +99,26 @@ async function bootstrap() {
         // 🛑 GRACEFUL SHUTDOWN
         // ============================================================================
         const handleShutdown = async (signal: string) => {
-            console.log(`\n⚠️  [${signal}] Señal de apagado recibida. Iniciando Graceful Shutdown...`);
+            logger.info(`⚠️  [${signal}] Señal de apagado recibida. Iniciando Graceful Shutdown...`);
 
             // 1. Salir de Eureka para no recibir peticiones con archivos a medio subir
             eurekaClient.stop((eurekaError) => {
-                if (eurekaError) console.error("❌ [EUREKA] Error al desregistrar:", eurekaError);
-                else console.log("✅ [EUREKA] Retirado de la malla de servicios.");
+                if (eurekaError) logger.error("❌ [EUREKA] Error al desregistrar", eurekaError);
+                else logger.info("✅ [EUREKA] Retirado de la malla de servicios.");
 
                 // 2. Apagar servidor HTTP
                 server.close(() => {
-                    console.log("✅ [SERVER] Servidor HTTP detenido.");
+                    logger.info("✅ [SERVER] Servidor HTTP detenido.");
                     
                     // Nota: Si en el futuro exportas el pool de ./config/db, ciérralo aquí.
                     
-                    console.log("👋 [SISTEMA] Apagado completado de forma segura.\n");
+                    logger.info("👋 [SISTEMA] Apagado completado de forma segura.");
                     process.exit(0);
                 });
             });
 
             setTimeout(() => {
-                console.error("🔥 [FATAL] El cierre tardó demasiado. Forzando salida.");
+                logger.error("🔥 [FATAL] El cierre tardó demasiado. Forzando salida.");
                 process.exit(1);
             }, 10000);
         };
@@ -107,7 +127,7 @@ async function bootstrap() {
         process.on("SIGTERM", () => handleShutdown("SIGTERM"));
 
     } catch (error) {
-        console.error(`\n❌ [FATAL] Error durante el arranque:`, error);
+        logger.error(`❌ [FATAL] Error durante el arranque:`, error);
         process.exit(1);
     }
 }

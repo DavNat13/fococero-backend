@@ -1,6 +1,7 @@
 // ms-reportes/src/config/firebase.ts
 import * as admin from 'firebase-admin';
 import { envs } from './envs';
+import { logger } from './logger';
 
 const initializeFirebase = () => {
     if (admin.apps.length > 0) {
@@ -15,14 +16,14 @@ const initializeFirebase = () => {
                 privateKey: envs.FIREBASE_PRIVATE_KEY,
             }),
         });
-        console.log('🔥 Firebase Admin SDK inicializado correctamente para ms-reportes.');
+        logger.info('🔥 Firebase Admin SDK inicializado correctamente para ms-reportes.');
         return app;
     } catch (error: unknown) {
         // ✅ FIX: Imprimimos el error real de forma segura para depurar
         if (error instanceof Error) {
-            console.error('❌ Error fatal al inicializar Firebase Admin SDK:', error.message);
+            logger.error({ err: error }, '❌ Error fatal al inicializar Firebase Admin SDK');
         } else {
-            console.error('❌ Error desconocido en Firebase:', error);
+            logger.error('❌ Error desconocido en Firebase: ' + String(error));
         }
         process.exit(1);
     }

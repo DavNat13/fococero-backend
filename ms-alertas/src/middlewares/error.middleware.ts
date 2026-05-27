@@ -1,6 +1,7 @@
 // src/middlewares/error.middleware.ts
 
 import { Request, Response, NextFunction } from 'express';
+import { logger } from '../config/logger';
 
 // Interfaz para tipar los errores que contienen metadatos adicionales
 interface AppError extends Error {
@@ -20,7 +21,7 @@ export const errorHandler = (
 ): void => {
     const error = err as AppError;
 
-    console.error(`🚨 [Alertas Error]:`, error.message || error);
+    logger.error({ err: error }, `🚨 [Alertas Error]`);
 
     let statusCode = error.statusCode || 500;
     let message = error.message || 'Error interno en el sistema de alertas de FocoCero.';

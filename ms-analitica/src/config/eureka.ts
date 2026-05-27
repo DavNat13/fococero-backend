@@ -1,5 +1,6 @@
 import { Eureka } from 'eureka-js-client';
 import { envs } from './envs';
+import { Logger } from '../helpers/logger.helper';
 
 // Configuración centralizada de la instancia
 export const eurekaClient = new Eureka({
@@ -33,9 +34,9 @@ export const eurekaClient = new Eureka({
 export const initEureka = (): void => {
     eurekaClient.start((error) => {
         if (error) {
-            console.error('❌ [EUREKA] Fallo crítico en el registro:', error.message);
+            Logger.error('❌ [EUREKA] Fallo crítico en el registro:', { error: error.message });
         } else {
-            console.log('✅ [EUREKA] Microservicio registrado en la malla con éxito.');
+            Logger.info('✅ [EUREKA] Microservicio registrado en la malla con éxito.');
         }
     });
 };

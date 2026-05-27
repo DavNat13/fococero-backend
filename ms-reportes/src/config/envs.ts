@@ -19,6 +19,9 @@ export const envs = {
         ? env.get('DB_PORT').default(5432).asPortNumber()
         : env.get('DB_PORT_LOCAL').default(5433).asPortNumber(),
 
+    // URL del API Gateway (para CORS estricto)
+    API_GATEWAY_URL: env.get('API_GATEWAY_URL').default('http://localhost:3000').asString(),
+
     //URL del Microservicio de Multimedia 
     MULTIMEDIA_SERVICE_URL: env.get('MULTIMEDIA_SERVICE_URL').required().asString(),
 

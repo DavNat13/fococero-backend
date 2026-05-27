@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { envs } from "../config/envs";
+import { logger } from "../config/logger";
 
 export const errorHandler = (
   err: any,
@@ -15,7 +16,7 @@ export const errorHandler = (
   const traceId = req.headers["x-trace-id"] || "N/A";
 
   // Log interno con Trace ID para depuración rápida
-  console.error(
+  logger.error(
     `❌ [Gateway Error | Trace: ${traceId}] ${req.method} ${safeUrl} - ${err.message}`,
   );
 

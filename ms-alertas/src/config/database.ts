@@ -1,6 +1,7 @@
 // ms-alertas/src/config/database.ts
 import { Pool } from 'pg';
 import { envs } from './envs';
+import { logger } from './logger';
 
 export const pool = new Pool({
     user: envs.DB_USER,
@@ -14,18 +15,18 @@ export const pool = new Pool({
 });
 
 pool.on('connect', () => {
-    console.log('📦 [DB] Pool de conexiones PostgreSQL inicializado.');
+    logger.info('📦 [DB] Pool de conexiones PostgreSQL inicializado.');
 });
 
 pool.on('error', (err: Error) => {
-    console.error('❌ [DB] Error inesperado en el Pool:', err.message);
+    logger.error({ err }, '❌ [DB] Error inesperado en el Pool');
 });
 
 export const testDbConnection = async () => {
     const client = await pool.connect();
     try {
         const res = await client.query('SELECT NOW()');
-        console.log(`📡 [DB] PostGIS Operativo. Server Time: ${res.rows[0].now}`);
+        logger.info(`📡 [DB] PostGIS Operativo. Server Time: ${res.rows[0].now}`);
     } finally {
         client.release();
     }
@@ -36,9 +37,9 @@ export const testDbConnection = async () => {
  * Vital para evitar saturar el servidor DB en despliegues con Docker/K8s.
  */
 const closePool = async () => {
-    console.log('🛑 [DB] Cerrando pool de conexiones...');
+    logger.info('🛑 [DB] Cerrando pool de conexiones...');
     await pool.end();
-    console.log('✅ [DB] Pool cerrado.');
+    logger.info('✅ [DB] Pool cerrado.');
 };
 
 process.on('SIGTERM', closePool);

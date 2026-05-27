@@ -193,10 +193,6 @@ fococero-backend/
 ├── ms-emergencias/           # Despachos a organismos
 ├── ms-analitica/             # Analítica + Redis
 ├── ms-template/              # 🏗️ Arquetipo base (no runtime)
-├── .specs/                   # 📋 Especificaciones técnicas
-│   ├── roadmap.md
-│   ├── skills/               # 18 skills de estándares de código
-│   └── tasks/                # Tareas completadas y pendientes
 ├── docker-compose.yml        # Orquestación completa
 ├── init-multiple-databases.sh
 ├── package.json
@@ -522,10 +518,6 @@ Todos los microservicios comparten la misma instancia PostgreSQL pero tienen **b
 | 5 | `multimedia_db` | ms-multimedia | `05-init-multimedia.sql` |
 | 6 | `emergencias_db` | ms-emergencias | `06-init-emergencias.sql` |
 | 7 | `analitica_db` | ms-analitica | `07-init-analitica.sql` |
-
-### Health Checks
-
-Cada microservicio expone `/health` para verificación de estado en Docker.
 
 ---
 

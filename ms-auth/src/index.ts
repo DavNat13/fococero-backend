@@ -10,20 +10,35 @@ import './config/firebase';
 import { pool } from './config/database';
 import authRoutes from './routes/auth.routes';
 import { errorHandler } from './middlewares/error.middleware';
+import { metricsMiddleware, metricsHandler } from './middlewares/metrics.middleware';
+import { logger } from './config/logger';
 
 import { initEurekaClient } from './config/eureka.client';
 
 const app: Application = express();
 
 // --- 🛡️ SEGURIDAD PERIMETRAL ---
-app.use(helmet());
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'"],
+                imgSrc: ["'self'", "data:"],
+            },
+        },
+    }),
+);
 
-// CORS Permisivo: Al ser un microservicio interno, permitimos el tráfico.
-// La seguridad y el bloqueo de dominios no autorizados los maneja el API Gateway.
-app.use(cors());
+// CORS Estricto: Solo permite el origen del API Gateway.
+app.use(cors({ origin: envs.API_GATEWAY_URL || 'http://localhost:3000' }));
 
 app.use(express.json());
 app.use(morgan('dev'));
+
+// 📊 Monitoreo de métricas (Prometheus)
+app.use(metricsMiddleware);
 
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -36,6 +51,9 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'UP', service: 'ms-auth' });
 });
 
+// 📊 Endpoint de métricas Prometheus
+app.get('/metrics', metricsHandler);
+
 // 📖 Ruta para la documentación interactiva de la API
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
@@ -44,9 +62,9 @@ app.use(errorHandler);
 
 // --- 🚀 INICIO DE SERVIDOR ---
 const server = app.listen(envs.PORT, () => {
-    console.log(`🚀 FocoCero Auth blindado y rodando en el puerto ${envs.PORT}`);
-    console.log(`📡 Puerto: ${envs.PORT} | DB: PostgreSQL Conectada`);
-    console.log(`📖 Documentación disponible en: http://localhost:${envs.PORT}/api/docs`);
+    logger.info(`🚀 FocoCero Auth blindado y rodando en el puerto ${envs.PORT}`);
+    logger.info(`📡 Puerto: ${envs.PORT} | DB: PostgreSQL Conectada`);
+    logger.info(`📖 Documentación disponible en: http://localhost:${envs.PORT}/api/docs`);
 
     initEurekaClient('ms-auth', envs.PORT);
 });
@@ -54,17 +72,17 @@ const server = app.listen(envs.PORT, () => {
 // --- 🛑 APAGADO ELEGANTE (GRACEFUL SHUTDOWN) ---
 // Cuando Docker o el sistema operativo ordenen detener el servicio:
 const gracefulShutdown = async () => {
-    console.log('\n🛑 Recibida señal de apagado. Deteniendo tráfico HTTP...');
+    logger.info('🛑 Recibida señal de apagado. Deteniendo tráfico HTTP...');
 
     server.close(async () => {
-        console.log('✅ Servidor HTTP cerrado (no se aceptan nuevas peticiones).');
+        logger.info('✅ Servidor HTTP cerrado (no se aceptan nuevas peticiones).');
         try {
-            console.log('🛑 Desconectando pool de PostgreSQL...');
+            logger.info('🛑 Desconectando pool de PostgreSQL...');
             await pool.end(); // Cerramos la base de datos sin dejar conexiones colgadas
-            console.log('✅ Base de datos desconectada. Apagado exitoso.');
+            logger.info('✅ Base de datos desconectada. Apagado exitoso.');
             process.exit(0);
         } catch (err) {
-            console.error('❌ Error al desconectar la base de datos:', err);
+            logger.error({ err }, '❌ Error al desconectar la base de datos');
             process.exit(1);
         }
     });

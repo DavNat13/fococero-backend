@@ -1,38 +1,28 @@
 // src/helpers/logger.helper.ts
+import pino from "pino";
+
+const pinoLogger = pino({
+  level: process.env.NODE_ENV === "test" ? "silent" : "info",
+  transport:
+    process.env.NODE_ENV === "development"
+      ? { target: "pino-pretty", options: { colorize: true } }
+      : undefined,
+});
+
 export class Logger {
-  private static formatMessage(
-    level: string,
-    message: string,
-    meta?: unknown,
-  ): string {
-    const payload: Record<string, unknown> = {
-      timestamp: new Date().toISOString(),
-      level,
-      message,
-    };
-
-    if (meta !== undefined) {
-      payload.meta = meta;
-    }
-
-    return JSON.stringify(payload);
-  }
-
   public static info(message: string, meta?: unknown): void {
-    process.stdout.write(this.formatMessage("INFO", message, meta) + "\n");
+    pinoLogger.info(meta, message);
   }
 
   public static warn(message: string, meta?: unknown): void {
-    process.stdout.write(this.formatMessage("WARN", message, meta) + "\n");
+    pinoLogger.warn(meta, message);
   }
 
   public static error(message: string, meta?: unknown): void {
-    process.stderr.write(this.formatMessage("ERROR", message, meta) + "\n");
+    pinoLogger.error(meta, message);
   }
 
   public static debug(message: string, meta?: unknown): void {
-    if (process.env.NODE_ENV !== "production") {
-      process.stdout.write(this.formatMessage("DEBUG", message, meta) + "\n");
-    }
+    pinoLogger.debug(meta, message);
   }
 }

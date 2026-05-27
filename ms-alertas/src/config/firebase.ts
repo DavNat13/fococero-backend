@@ -1,6 +1,7 @@
 // ms-alertas/src/config/firebase.ts
 import * as admin from 'firebase-admin';
 import { envs } from './envs';
+import { logger } from './logger';
 
 /**
  * Inicialización de Firebase con Patrón Singleton.
@@ -20,19 +21,16 @@ const initializeFirebase = () => {
                 privateKey: envs.FIREBASE_PRIVATE_KEY,
             }),
         });
-        console.log('🔥 [Firebase] SDK inicializado exitosamente.');
+        logger.info('🔥 [Firebase] SDK inicializado exitosamente.');
         return app;
     } catch (error: unknown) {
         // Tipado estricto: asume que el origen del fallo es desconocido
         if (error instanceof Error) {
             // TypeScript ahora sabe con 100% de certeza que 'error' tiene una propiedad 'message'
-            console.error('❌ [Firebase] Error crítico de inicialización:', error.message);
+            logger.error({ err: error }, '❌ [Firebase] Error crítico de inicialización');
         } else {
             // Fallback para objetos arrojados que no heredan de la clase Error estándar
-            console.error(
-                '❌ [Firebase] Error crítico de inicialización (Tipo no estándar):',
-                error,
-            );
+            logger.error('❌ [Firebase] Error crítico de inicialización (Tipo no estándar): ' + String(error));
         }
 
         process.exit(1);

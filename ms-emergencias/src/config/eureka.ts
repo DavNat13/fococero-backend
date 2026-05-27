@@ -1,5 +1,6 @@
 import { Eureka } from 'eureka-js-client';
 import { envs } from './envs';
+import { Logger } from '../helpers/logger';
 
 export const eurekaClient = new Eureka({
     instance: {
@@ -29,9 +30,9 @@ export const eurekaClient = new Eureka({
 export const initEureka = () => {
     eurekaClient.start((error) => {
         if (error) {
-            console.error('❌ Error al registrar ms-emergencias en Eureka:', error);
+            Logger.error('❌ Error al registrar ms-emergencias en Eureka:', error);
         } else {
-            console.log('✅ ms-emergencias registrado exitosamente en Eureka Server');
+            Logger.info('✅ ms-emergencias registrado exitosamente en Eureka Server');
         }
     });
 };

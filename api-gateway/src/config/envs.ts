@@ -2,6 +2,7 @@
 
 import "dotenv/config";
 import { z } from "zod";
+import { logger } from "./logger";
 
 const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
@@ -38,8 +39,8 @@ const envSchema = z.object({
 const _env = envSchema.safeParse(process.env);
 
 if (!_env.success) {
-  console.error("❌ CRÍTICO: Error en variables de entorno del API Gateway:");
-  console.error(_env.error.format());
+  logger.error("❌ CRÍTICO: Error en variables de entorno del API Gateway:");
+  logger.error(_env.error.format());
   process.exit(1);
 }
 

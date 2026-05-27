@@ -1,6 +1,7 @@
 // ms-auth/src/middlewares/error.middleware.ts
 
 import { Request, Response, NextFunction } from 'express';
+import { logger } from '../config/logger';
 
 // Interfaz local para castear los metadatos de error sin usar 'any'
 interface AppError extends Error {
@@ -22,7 +23,7 @@ export const errorHandler = (
     const error = err as AppError;
 
     // 1. Log interno del servidor (Para trazabilidad)
-    console.error(`🚨 [Error Global Handler ms-auth]:`, error.message || error);
+    logger.error({ err: error }, `🚨 [Error Global Handler ms-auth]`);
 
     let statusCode = error.statusCode || 500;
     let message = error.message || 'Error interno del servidor. Contacte al equipo de FocoCero.';

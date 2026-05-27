@@ -2,6 +2,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../helpers/appError';
+import { logger } from '../config/logger';
 
 /**
  * Middleware: Manejador Global de Errores para ms-geo
@@ -28,7 +29,7 @@ export const errorHandler = (
         const errorWithCode = err as Error & { code?: string; statusCode?: number };
 
         // Log interno para depuración (Solo visible en consola de Docker/Terminal)
-        console.error(`🚨 [Geo Engine Error]:`, err.message);
+        logger.error({ err }, `🚨 [Geo Engine Error]`);
 
         // --- 🟢 TRADUCCIÓN DE ERRORES FIREBASE (Autenticación) ---
         if (errorWithCode.code?.startsWith('auth/')) {

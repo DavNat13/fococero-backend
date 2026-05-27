@@ -1,6 +1,7 @@
 // ms-auth/src/config/database.ts
 import { Pool } from 'pg';
 import { envs } from './envs';
+import { logger } from './logger';
 
 export const pool = new Pool({
     user: envs.DB_USER,
@@ -14,11 +15,11 @@ export const pool = new Pool({
 });
 
 pool.on('connect', () => {
-    console.log('📦 [DB] Conectado exitosamente a PostgreSQL (ms-auth)');
+    logger.info('📦 [DB] Conectado exitosamente a PostgreSQL (ms-auth)');
 });
 
 pool.on('error', (err: Error) => {
-    console.error('❌ [DB] Error fatal o pérdida de conexión en ms-auth:', err.message);
+    logger.error({ err }, '❌ [DB] Error fatal o pérdida de conexión en ms-auth');
     process.exit(-1);
 });
 
@@ -26,7 +27,7 @@ export const testDbConnection = async () => {
     const client = await pool.connect();
     try {
         const res = await client.query('SELECT NOW()');
-        console.log(`📡 [DB] Motor de Identidad Operativo. Server Time: ${res.rows[0].now}`);
+        logger.info(`📡 [DB] Motor de Identidad Operativo. Server Time: ${res.rows[0].now}`);
     } finally {
         client.release();
     }
@@ -36,9 +37,9 @@ export const testDbConnection = async () => {
  * Graceful Shutdown: Cierre ordenado de conexiones.
  */
 const closePool = async () => {
-    console.log('🛑 [DB] Cerrando pool de conexiones de ms-auth...');
+    logger.info('🛑 [DB] Cerrando pool de conexiones de ms-auth...');
     await pool.end();
-    console.log('✅ [DB] Pool cerrado.');
+    logger.info('✅ [DB] Pool cerrado.');
 };
 
 process.on('SIGTERM', closePool);

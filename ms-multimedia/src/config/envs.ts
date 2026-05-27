@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { z } from 'zod';
+import { logger } from './logger';
 
 const envVarsSchema = z.object({
     PORT: z.string().transform(Number).default('3005'),
@@ -23,7 +24,7 @@ const envVarsSchema = z.object({
 const { data, error } = envVarsSchema.safeParse(process.env);
 
 if (error) {
-    console.error(error.format());
+    logger.error(`Error de validación de variables de entorno: ${error.message}`);
     process.exit(1);
 }
 

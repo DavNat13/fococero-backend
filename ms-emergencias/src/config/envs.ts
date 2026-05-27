@@ -2,7 +2,7 @@ import 'dotenv/config';
 import * as env from 'env-var';
 
 // Detecta si corre dentro de la red de Docker
-const isDocker = process.env.DB_HOST === 'db-fococero';
+const isDocker = process.env.DOCKER_ENV === 'true' || process.env.DB_HOST === 'db-fococero';
 
 export const envs = {
     PORT: env.get('PORT').required().asPortNumber(),

@@ -12,7 +12,9 @@ import { pool, testDbConnection } from './config/database';
 import './config/firebase';
 import geoRoutes from './routes/geo.routes';
 import { errorHandler } from './middlewares/error.middleware';
-import { envs } from './config/envs';   
+import { metricsMiddleware, metricsHandler } from './middlewares/metrics.middleware';
+import { envs } from './config/envs';
+import { logger } from './config/logger';
 
 import { initEurekaClient } from './config/eureka.client';
 
@@ -30,11 +32,25 @@ app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // ============================================================================
 // 🛡️ 2. SEGURIDAD Y MIDDLEWARES BASE
 // ============================================================================
-app.use(helmet());
-app.use(cors());
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'"],
+                imgSrc: ["'self'", "data:"],
+            },
+        },
+    }),
+);
+app.use(cors({ origin: envs.API_GATEWAY_URL || 'http://localhost:3000' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+
+// 📊 Monitoreo de métricas (Prometheus)
+app.use(metricsMiddleware);
 
 // Limitador: Protege al motor espacial de abusos (100 peticiones / 15 min)
 const limiter = rateLimit({
@@ -49,6 +65,9 @@ app.use('/api/geo', limiter);
 // ============================================================================
 // 🛣️ 3. RUTAS Y ERRORES
 // ============================================================================
+// 📊 Endpoint de métricas Prometheus
+app.get('/metrics', metricsHandler);
+
 app.use('/api/geo', geoRoutes);
 
 // Manejador global (Debe ser el último middleware)
@@ -60,16 +79,16 @@ app.use(errorHandler);
 const PORT = envs.PORT;
 
 const server = app.listen(PORT, async () => {
-    console.log(`\n====================================================`);
-    console.log(`🌍 MICROSERVICIO MS-GEO (FocoCero) ACTIVADO`);
-    console.log(`📡 Puerto: ${PORT} | Entorno: ${envs.NODE_ENV}`);
+    logger.info(`====================================================`);
+    logger.info(`🌍 MICROSERVICIO MS-GEO (FocoCero) ACTIVADO`);
+    logger.info(`📡 Puerto: ${PORT} | Entorno: ${envs.NODE_ENV}`);
 
     // Verificación de salud de PostGIS
     await testDbConnection();
 
-    console.log(`🛡️  Seguridad: Limitador y Escudos Activos`);
-    console.log(`📖 Docs: http://localhost:${PORT}/api/docs`);
-    console.log(`====================================================\n`);
+    logger.info(`🛡️  Seguridad: Limitador y Escudos Activos`);
+    logger.info(`📖 Docs: http://localhost:${PORT}/api/docs`);
+    logger.info(`====================================================`);
 
     initEurekaClient('ms-geo', Number(PORT));
 });
@@ -78,15 +97,15 @@ const server = app.listen(PORT, async () => {
 // 🛑 5. CIERRE CONTROLADO (GRACEFUL SHUTDOWN)
 // ============================================================================
 const gracefulShutdown = async (signal: string) => {
-    console.log(`\n🛑 Apagando ms-geo (${signal})...`);
+    logger.info(`🛑 Apagando ms-geo (${signal})...`);
 
     server.close(async () => {
         try {
             await pool.end();
-            console.log('✅ Base de datos desconectada. Sistema cerrado.');
+            logger.info('✅ Base de datos desconectada. Sistema cerrado.');
             process.exit(0);
         } catch (err) {
-            console.error('❌ Error al cerrar DB:', err);
+            logger.error({ err }, '❌ Error al cerrar DB');
             process.exit(1);
         }
     });

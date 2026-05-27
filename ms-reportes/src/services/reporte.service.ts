@@ -6,6 +6,7 @@ import { ICreateReporteDTO, IUpdateReporteDTO, EstadoReporte } from '../models/r
 import { UserRole } from '../models/user.enum';
 import { AppError } from '../helpers/appError';
 import { envs } from '../config/envs';
+import { logger } from '../config/logger';
 
 const ESTADOS_FINALES = new Set<EstadoReporte>([
     EstadoReporte.RESUELTO,
@@ -60,12 +61,12 @@ export class ReporteService {
                 },
             );
 
-            console.log(
+            logger.info(
                 `✅ Imagen ${id_multimedia} vinculada exitosamente al reporte ${reporteId}`,
             );
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-            console.error(`⚠️ Error vinculando multimedia ${id_multimedia}:`, errorMessage);
+            logger.error(`⚠️ Error vinculando multimedia ${id_multimedia}: ${errorMessage}`);
         }
     }
 

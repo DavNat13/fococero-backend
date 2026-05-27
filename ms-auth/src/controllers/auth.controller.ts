@@ -2,6 +2,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
+import { AppError } from '../helpers/appError';
 
 export class AuthController {
     // --- 🟢 SECCIÓN: PÚBLICA ---
@@ -77,6 +78,9 @@ export class AuthController {
         try {
             // ✅ FIX: Casteo explícito a String primitivo
             const targetUserId = parseInt(String(req.params.id), 10);
+            if (isNaN(targetUserId) || targetUserId <= 0) {
+                throw new AppError('ID de usuario inválido', 400);
+            }
             const updatedUser = await AuthService.changeUserRole(targetUserId, req.body.rol);
             res.status(200).json({
                 ok: true,
@@ -92,6 +96,9 @@ export class AuthController {
         try {
             // ✅ FIX: Casteo explícito a String primitivo
             const targetUserId = parseInt(String(req.params.id), 10);
+            if (isNaN(targetUserId) || targetUserId <= 0) {
+                throw new AppError('ID de usuario inválido', 400);
+            }
             const updatedUser = await AuthService.updateUserStatus(targetUserId, req.body.estado);
             res.status(200).json({
                 ok: true,
@@ -107,6 +114,9 @@ export class AuthController {
         try {
             // ✅ FIX: Casteo explícito a String primitivo
             const targetUserId = parseInt(String(req.params.id), 10);
+            if (isNaN(targetUserId) || targetUserId <= 0) {
+                throw new AppError('ID de usuario inválido', 400);
+            }
             await AuthService.terminateUser(targetUserId);
             res.status(200).json({
                 ok: true,

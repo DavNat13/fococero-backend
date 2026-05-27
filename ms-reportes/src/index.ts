@@ -17,6 +17,8 @@ import { pool, testDbConnection } from './config/db';
 import './config/firebase';
 import reporteRoutes from './routes/reporte.routes';
 import { errorHandler } from './middlewares/error.middleware';
+import { metricsMiddleware, metricsHandler } from './middlewares/metrics.middleware';
+import { logger } from './config/logger';
 
 import { initEurekaClient } from './config/eureka.client.js';
 
@@ -29,10 +31,23 @@ import * as swaggerDocument from './docs/swagger.json';
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // 🛡️ 2. SEGURIDAD PERIMETRAL
-app.use(helmet());
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'"],
+                imgSrc: ["'self'", "data:"],
+            },
+        },
+    }),
+);
 
 // Nota: Usualmente el API Gateway maneja los CORS, pero lo dejamos por seguridad en capa 2
-const allowedOrigins = ['http://localhost:5173', 'https://fococero.cl'];
+const allowedOrigins = envs.API_GATEWAY_URL 
+    ? [envs.API_GATEWAY_URL, 'http://localhost:5173', 'https://fococero.cl']
+    : ['http://localhost:5173', 'https://fococero.cl'];
 app.use(
     cors({
         origin: (origin, callback) => {
@@ -49,6 +64,9 @@ app.use(
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
+
+// 📊 Monitoreo de métricas (Prometheus)
+app.use(metricsMiddleware);
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -71,6 +89,9 @@ app.get('/api/health', (req: Request, res: Response) => {
     });
 });
 
+// 📊 Endpoint de métricas Prometheus
+app.get('/metrics', metricsHandler);
+
 // ✅ FIX ARQUITECTÓNICO: Escuchamos en la raíz para que el API Gateway gestione el prefijo limpio
 app.use('/', reporteRoutes);
 
@@ -84,22 +105,22 @@ app.use(errorHandler);
 
 // 🚀 5. INICIALIZACIÓN DEL SERVIDOR
 const server = app.listen(envs.PORT, async () => {
-    console.log(`\n====================================================`);
-    console.log(`🌍 MICROSERVICIO MS-REPORTES (FocoCero) ACTIVADO`);
-    console.log(`📡 Puerto: ${envs.PORT} | Entorno: ${envs.NODE_ENV}`);
+    logger.info(`====================================================`);
+    logger.info(`🌍 MICROSERVICIO MS-REPORTES (FocoCero) ACTIVADO`);
+    logger.info(`📡 Puerto: ${envs.PORT} | Entorno: ${envs.NODE_ENV}`);
 
     try {
         await testDbConnection();
     } catch (error) {
-        console.error(
-            `⚠️ Advertencia: No se pudo verificar la conexión a la BD de Reportes...`,
-            error,
+        logger.error(
+            { err: error },
+            `⚠️ Advertencia: No se pudo verificar la conexión a la BD de Reportes`,
         );
     }
 
-    console.log(`🛡️  Seguridad: Limitador y Escudos Activos`);
-    console.log(`📖 Documentación: http://localhost:${envs.PORT}/api/docs`);
-    console.log(`====================================================\n`);
+    logger.info(`🛡️  Seguridad: Limitador y Escudos Activos`);
+    logger.info(`📖 Documentación: http://localhost:${envs.PORT}/api/docs`);
+    logger.info(`====================================================`);
 
     initEurekaClient('ms-reportes', Number(envs.PORT));
     
@@ -107,23 +128,23 @@ const server = app.listen(envs.PORT, async () => {
 
 // 🛑 6. APAGADO ELEGANTE (GRACEFUL SHUTDOWN)
 const gracefulShutdown = async (signal: string) => {
-    console.log(`\n🛑 Recibida señal de apagado (${signal}). Deteniendo tráfico HTTP...`);
+    logger.info(`🛑 Recibida señal de apagado (${signal}). Deteniendo tráfico HTTP...`);
 
     server.close(async () => {
-        console.log('✅ Servidor HTTP detenido.');
+        logger.info('✅ Servidor HTTP detenido.');
         try {
             await pool.end();
-            console.log('✅ Conexiones a la base de datos cerradas.');
+            logger.info('✅ Conexiones a la base de datos cerradas.');
             process.exit(0);
         } catch (err) {
-            console.error('❌ Error al cerrar conexiones DB:', err);
+            logger.error({ err }, '❌ Error al cerrar conexiones DB');
             process.exit(1);
         }
     });
 
     // Fallback de seguridad por si las conexiones de DB se quedan colgadas
     setTimeout(() => {
-        console.error('❌ Cierre forzado por Timeout tras 10s.');
+        logger.error('❌ Cierre forzado por Timeout tras 10s.');
         process.exit(1);
     }, 10000);
 };

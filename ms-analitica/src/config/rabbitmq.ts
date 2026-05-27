@@ -1,5 +1,6 @@
 import { connect, ChannelModel, Channel } from "amqplib";
 import { envs } from "./envs";
+import { Logger } from "../helpers/logger.helper";
 
 class RabbitMQBus {
   private static instance: RabbitMQBus; 
@@ -26,23 +27,23 @@ class RabbitMQBus {
       const ch = await conn.createChannel();
 
       conn.on("error", (err: unknown) => {
-        console.error("🔥 [RabbitMQ] Error de conexión:", err);
+        Logger.error("🔥 [RabbitMQ] Error de conexión:", err);
         this.scheduleReconnect();
       });
 
       conn.on("close", () => {
-        console.warn("⚠️ [RabbitMQ] Conexión cerrada. Reconectando...");
+        Logger.warn("⚠️ [RabbitMQ] Conexión cerrada. Reconectando...");
         this.scheduleReconnect();
       });
 
       // Escuchar eventos del canal
       ch.on("error", (err: unknown) => {
-        console.error("🔥 [RabbitMQ] Error en el canal:", err);
+        Logger.error("🔥 [RabbitMQ] Error en el canal:", err);
         this.scheduleReconnect();
       });
 
       ch.on("close", () => {
-        console.warn("⚠️ [RabbitMQ] Canal cerrado. Reconectando...");
+        Logger.warn("⚠️ [RabbitMQ] Canal cerrado. Reconectando...");
         this.scheduleReconnect();
       });
 
@@ -50,9 +51,9 @@ class RabbitMQBus {
       this.connection = conn;
       this.channel = ch;
 
-      console.log("🐇 RabbitMQ [Event Bus] Conectado Exitosamente");
+      Logger.info("🐇 RabbitMQ [Event Bus] Conectado Exitosamente");
     } catch (error: unknown) {
-      console.error("❌ [RabbitMQ] Falla inicial. Reintentando...", error);
+      Logger.error("❌ [RabbitMQ] Falla inicial. Reintentando...", error);
       this.scheduleReconnect();
     } finally {
       this.isConnecting = false;
@@ -75,7 +76,7 @@ class RabbitMQBus {
     this.reconnectTimeout = setTimeout(() => {
       this.reconnectTimeout = null;
       this.connect().catch((err: unknown) => {
-        console.error("Error crítico al reconectar RabbitMQ:", err);
+        Logger.error("Error crítico al reconectar RabbitMQ:", err);
       });
     }, 5000);
   }

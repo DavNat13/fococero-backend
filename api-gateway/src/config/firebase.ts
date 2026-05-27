@@ -1,5 +1,6 @@
 import * as admin from "firebase-admin";
 import { envs } from "./envs";
+import { logger } from "./logger";
 
 try {
   if (admin.apps.length === 0) {
@@ -10,14 +11,11 @@ try {
         privateKey: envs.FIREBASE_PRIVATE_KEY,
       }),
     });
-    console.log("🔥 Firebase Admin SDK vinculado al API Gateway");
+    logger.info("🔥 Firebase Admin SDK vinculado al API Gateway");
   }
 } catch (error: unknown) {
   const msg = error instanceof Error ? error.message : "Error desconocido";
-  console.error(
-    "🚨 FATAL: No se pudo conectar con Firebase en el Gateway:",
-    msg,
-  );
+  logger.error("🚨 FATAL: No se pudo conectar con Firebase en el Gateway: " + msg);
   process.exit(1);
 }
 

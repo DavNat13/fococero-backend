@@ -1,6 +1,7 @@
 // ms-geo/src/config/firebase.ts
 import * as admin from 'firebase-admin';
 import { envs } from './envs';
+import { logger } from './logger';
 
 try {
     if (admin.apps.length === 0) {
@@ -11,11 +12,11 @@ try {
                 privateKey: envs.FIREBASE_PRIVATE_KEY,
             }),
         });
-        console.log('🔥 Firebase Admin SDK vinculado a ms-geo');
+        logger.info('🔥 Firebase Admin SDK vinculado a ms-geo');
     }
 } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
-    console.error('🚨 FATAL ERROR: ms-geo no pudo inicializar Firebase Admin:', msg);
+    logger.error('🚨 FATAL ERROR: ms-geo no pudo inicializar Firebase Admin: ' + msg);
     process.exit(1);
 }
 

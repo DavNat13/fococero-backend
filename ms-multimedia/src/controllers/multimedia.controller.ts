@@ -9,6 +9,7 @@ import { bucket } from '../config/firebase';
 // Helpers importados
 import { successResponse } from '../helpers/response.helper';
 import { AppError } from '../helpers/error.helper';
+import { logger } from '../config/logger';
 
 export class MultimediaController {
     /**
@@ -112,7 +113,7 @@ export class MultimediaController {
                     }
                     await ArchivoRepository.eliminarLogico(archivo.id);
                 } catch (err) {
-                    console.error(`Error limpiando archivo físico ${archivo.id}:`, err);
+                    logger.error(`Error limpiando archivo físico ${archivo.id}:`, err);
                 }
             }
 

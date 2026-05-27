@@ -38,10 +38,10 @@ jobs:
         run: npm ci
 
       - name: 🔍 Ejecutar Linter
-        run: npm run lint --if-present
+        run: npm run lint
 
       - name: 🧪 Ejecutar Pruebas Unitarias (Jest)
-        run: npm run test --if-present
+        run: npm test -- --coverage
         env:
           NODE_ENV: test
           PORT: 3007
@@ -52,7 +52,21 @@ jobs:
           DB_NAME: analitica_db
           REDIS_HOST: localhost
           REDIS_PORT: 6379
-          INTERNAL_SECRET_TOKEN: mock-secret-token-for-ci
+          INTERNAL_SECRET_TOKEN: ${{ secrets.INTERNAL_SECRET_TOKEN || 'mock-secret-token-for-ci' }}
 
       - name: 🏗️ Compilar Proyecto (Build)
         run: npm run build
+
+      # TODO: Descomentar cuando se configuren los secrets de Docker (DOCKER_USERNAME, DOCKER_PASSWORD)
+      # - name: 🔐 Login a Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
+      #
+      # - name: 🐳 Build y Push de imagen Docker
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     context: ./ms-analitica
+      #     push: true
+      #     tags: fococero/ms-analitica:latest

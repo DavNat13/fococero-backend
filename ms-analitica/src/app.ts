@@ -3,11 +3,13 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import swaggerUi from "swagger-ui-express";
+import { envs } from "./config/envs";
 
 // Importación de Clases de Middleware
 import { RequestLoggerMiddleware } from "./middlewares/request-logger.middleware";
 import { AuthMiddleware } from "./middlewares/auth.middleware";
 import { ErrorMiddleware } from "./middlewares/error.middleware";
+import { metricsMiddleware, metricsHandler } from "./middlewares/metrics.middleware";
 
 // Helpers, Rutas y Config Docs
 import { AppError } from "./helpers/error.helper";
@@ -31,8 +33,19 @@ app.use(
 // ============================================================================
 // 🛡️ 2. SEGURIDAD Y MIDDLEWARES BASE
 // ============================================================================
-app.use(helmet());
-app.use(cors());
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'"],
+                imgSrc: ["'self'", "data:"],
+            },
+        },
+    }),
+);
+app.use(cors({ origin: envs.API_GATEWAY_URL || 'http://localhost:3000' }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev")); // Ver logs de peticiones estilo ms-geo
@@ -41,6 +54,12 @@ app.use(morgan("dev")); // Ver logs de peticiones estilo ms-geo
 // 📊 3. MONITOREO Y TRAZABILIDAD
 // ============================================================================
 app.use(RequestLoggerMiddleware.log);
+
+// 📊 Monitoreo de métricas (Prometheus)
+app.use(metricsMiddleware);
+
+// Endpoint de métricas Prometheus
+app.get("/metrics", metricsHandler);
 
 app.get("/health", (_req: Request, res: Response) => {
   res.json({

@@ -19,6 +19,9 @@ export const envs = {
     DB_NAME: env.get('DB_NAME').required().asString(),
     EUREKA_HOST: env.get('EUREKA_HOST').required().asString(),
 
+    // URL del API Gateway (para CORS estricto)
+    API_GATEWAY_URL: env.get('API_GATEWAY_URL').default('http://localhost:3000').asString(),
+
     // Firebase Admin SDK (Secretos)
     FIREBASE_PROJECT_ID: env.get('FIREBASE_PROJECT_ID').required().asString(),
     FIREBASE_CLIENT_EMAIL: env.get('FIREBASE_CLIENT_EMAIL').required().asString(),

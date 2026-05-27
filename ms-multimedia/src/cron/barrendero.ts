@@ -2,6 +2,7 @@
 
 import cron from 'node-cron';
 import { envs } from '../config/envs';
+import { logger } from '../config/logger';
 
 export const iniciarBarrendero = () => {
     /**
@@ -10,7 +11,7 @@ export const iniciarBarrendero = () => {
      * Es la hora ideal porque el tráfico de la app suele ser el más bajo.
      */
     cron.schedule('0 3 * * *', async () => {
-        console.log('\n🧹 [CRON] Iniciando jornada del Barrendero: Limpieza de huérfanos...');
+        logger.info('🧹 [CRON] Iniciando jornada del Barrendero: Limpieza de huérfanos...');
 
         try {
             const url = `http://localhost:${envs.PORT}/api/v1/multimedia/internal/cleanup`;
@@ -26,14 +27,14 @@ export const iniciarBarrendero = () => {
 
             const result = await response.json();
 
-            console.log('✨ [CRON] Jornada finalizada con éxito.');
-            console.log(`📊 Resultados:`, result.data || result.message);
-            console.log('--------------------------------------------------\n');
+            logger.info('✨ [CRON] Jornada finalizada con éxito.');
+            logger.info(`📊 Resultados:`, result.data || result.message);
+            logger.info('--------------------------------------------------');
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
-            console.error('⚠️ [CRON] Fallo crítico durante la limpieza automática:', errorMessage);
+            logger.error('⚠️ [CRON] Fallo crítico durante la limpieza automática:', errorMessage);
         }
     });
 
-    console.log('🕒 [CRON] Sistema Barrendero armado y programado (03:00 AM).');
+    logger.info('🕒 [CRON] Sistema Barrendero armado y programado (03:00 AM).');
 };

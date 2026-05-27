@@ -24,6 +24,9 @@ export const envs = {
         ? env.get('DB_PORT').default(5432).asPortNumber()
         : env.get('DB_PORT_LOCAL').default(5433).asPortNumber(),
 
+    // URL del API Gateway (para CORS estricto)
+    API_GATEWAY_URL: env.get('API_GATEWAY_URL').default('http://localhost:3000').asString(),
+
     // Firebase
     FIREBASE_PROJECT_ID: env.get('FIREBASE_PROJECT_ID').required().asString(),
     FIREBASE_CLIENT_EMAIL: env.get('FIREBASE_CLIENT_EMAIL').required().asString(),
