@@ -53,6 +53,10 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           INTERNAL_SECRET_TOKEN: ${{ secrets.INTERNAL_SECRET_TOKEN || 'mock-secret-token-for-ci' }}
+          EUREKA_HOST: localhost
+          API_GATEWAY_URL: http://localhost:3000
+          RABBITMQ_URL: amqp://localhost
+          RABBITMQ_URL_LOCAL: amqp://localhost
 
       - name: 🏗️ Compilar Proyecto (Build)
         run: npm run build

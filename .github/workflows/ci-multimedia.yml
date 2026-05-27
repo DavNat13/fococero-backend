@@ -56,6 +56,8 @@ jobs:
           FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY || 'test-key' }}
           GATEWAY_URL: ${{ secrets.GATEWAY_URL || 'http://localhost:3000' }}
           FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET || 'fococero-test.appspot.com' }}
+          EUREKA_HOST: localhost
+          INTERNAL_SECRET_TOKEN: ${{ secrets.INTERNAL_SECRET_TOKEN || 'test-token' }}
 
       # Paso 5: Compilar el código TypeScript a JavaScript
       - name: 🏗️ Compilar TypeScript (Build)

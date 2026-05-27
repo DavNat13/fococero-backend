@@ -39,6 +39,19 @@ jobs:
 
       - name: Run Tests with Coverage
         run: npm test -- --coverage
+        env:
+          NODE_ENV: test
+          PORT: 3001
+          DB_USER: test
+          DB_PASSWORD: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: auth_db
+          EUREKA_HOST: localhost
+          API_GATEWAY_URL: http://localhost:3000
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID || 'test-project' }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL || 'test@test.com' }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY || 'test-key' }}
 
       - name: Build Project
         run: npm run build

@@ -39,6 +39,22 @@ jobs:
 
       - name: Run Tests with Coverage
         run: npm test -- --coverage
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          AUTH_SERVICE_URL: http://localhost:3001
+          GEO_SERVICE_URL: http://localhost:3002
+          ALERTAS_SERVICE_URL: http://localhost:3003
+          REPORTES_SERVICE_URL: http://localhost:3004
+          MULTIMEDIA_SERVICE_URL: http://localhost:3005
+          EMERGENCIAS_SERVICE_URL: http://localhost:3006
+          ANALITICA_SERVICE_URL: http://localhost:3007
+          EUREKA_HOST: localhost
+          INTERNAL_SECRET_TOKEN: test-token
+          CORS_ORIGINS: http://localhost:5173,http://localhost:3000
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID || 'test-project' }}
+          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL || 'test@test.com' }}
+          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY || 'test-key' }}
 
       - name: Build Project
         run: npm run build

@@ -49,6 +49,7 @@ jobs:
           DB_PORT_LOCAL: 5432
 
           INTERNAL_SECRET_TOKEN: ${{ secrets.INTERNAL_SECRET_TOKEN || 'mock-test-token' }}
+          EUREKA_HOST: localhost
           API_GATEWAY_URL: ${{ secrets.API_GATEWAY_URL || 'http://mock-gateway:3000' }}
 
           BOMBEROS_API_URL: ${{ secrets.BOMBEROS_API_URL || 'https://mock.bomberos.cl' }}

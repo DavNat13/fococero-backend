@@ -17,7 +17,7 @@ export const envs = {
     DB_HOST: env.get('DB_HOST').required().asString(),
     DB_PORT: env.get('DB_PORT').required().asPortNumber(),
     DB_NAME: env.get('DB_NAME').required().asString(),
-    EUREKA_HOST: env.get('EUREKA_HOST').required().asString(),
+    EUREKA_HOST: env.get('EUREKA_HOST').default('localhost').asString(),
 
     // URL del API Gateway (para CORS estricto)
     API_GATEWAY_URL: env.get('API_GATEWAY_URL').default('http://localhost:3000').asString(),
