@@ -10,10 +10,12 @@ export interface GuestRegisterDTO {
     nombre: string;
     apellido: string;
     telefono: string;
+    firebase_uid?: string;
 }
 
 export interface FullRegisterDTO extends GuestRegisterDTO {
     token: string;
+    password?: string;
 }
 
 /**
@@ -143,6 +145,60 @@ export class AuthValidator {
     } {
         if (!data.estado || !Object.values(UserStatus).includes(data.estado as UserStatus)) {
             return { isValid: false, error: 'El estado proporcionado no es válido.' };
+        }
+        return { isValid: true };
+    }
+
+    // --- 🟢 VALIDADOR GOOGLE AUTH ---
+
+    static validateGoogleAuth(data: { token: string }): { isValid: boolean; error?: string } {
+        if (!data.token || data.token.length < 20) {
+            return {
+                isValid: false,
+                error: 'El token de Google debe tener al menos 20 caracteres.',
+            };
+        }
+        return { isValid: true };
+    }
+
+    // --- 🟢 VALIDADOR LOGIN ---
+
+    static validateLogin(data: { rut: string; password: string }): { isValid: boolean; error?: string } {
+        if (!data.rut || !this.isValidRut(data.rut)) {
+            return { isValid: false, error: 'El RUT ingresado no es válido.' };
+        }
+        if (!data.password || data.password.length < 6) {
+            return {
+                isValid: false,
+                error: 'La contraseña debe tener al menos 6 caracteres.',
+            };
+        }
+        return { isValid: true };
+    }
+
+    // --- 🟢 VALIDADOR PERFIL BRIGADISTA ---
+
+    static validatePerfilBrigadista(data: {
+        organismo?: string;
+        rango?: string;
+        zona_asignada?: string;
+        numero_placa?: string;
+        fecha_ingreso?: string;
+    }): { isValid: boolean; error?: string } {
+        if (data.organismo !== undefined && data.organismo.trim().length < 2) {
+            return { isValid: false, error: 'El organismo debe tener al menos 2 caracteres.' };
+        }
+        if (data.rango !== undefined && data.rango.trim().length < 2) {
+            return { isValid: false, error: 'El rango debe tener al menos 2 caracteres.' };
+        }
+        if (data.zona_asignada !== undefined && data.zona_asignada.trim().length < 2) {
+            return { isValid: false, error: 'La zona asignada debe tener al menos 2 caracteres.' };
+        }
+        if (data.fecha_ingreso !== undefined) {
+            const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!isoDateRegex.test(data.fecha_ingreso)) {
+                return { isValid: false, error: 'La fecha debe estar en formato ISO (YYYY-MM-DD).' };
+            }
         }
         return { isValid: true };
     }

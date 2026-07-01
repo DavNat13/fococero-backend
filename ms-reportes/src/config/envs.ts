@@ -36,4 +36,6 @@ export const envs = {
         .replace(/"/g, '')
         .trim(),
     JWT_SECRET: env.get('JWT_SECRET').required().asString(),
+    INTERNAL_SECRET_TOKEN: env.get('INTERNAL_SECRET_TOKEN').default('dev-internal-secret').asString(),
+    RABBITMQ_URL: env.get('RABBITMQ_URL').default('amqp://localhost').asString(),
 };

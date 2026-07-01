@@ -37,4 +37,5 @@ export const envs = {
         .replace(/\\n/g, '\n')
         .replace(/"/g, '')
         .trim(),
+    INTERNAL_SECRET_TOKEN: env.get('INTERNAL_SECRET_TOKEN').default('dev-internal-secret').asString(),
 };

@@ -9,7 +9,7 @@ import { UserRole, UserStatus } from '../models/user.enum';
  */
 const ALLOWED_UPDATE_COLUMNS = new Set([
     'rut', 'nombre', 'apellido', 'email', 'telefono',
-    'firebase_uid', 'fcm_token', 'rol', 'estado',
+    'firebase_uid', 'fcm_token', 'rol', 'estado', 'password',
 ]);
 
 export class UserRepository {
@@ -123,6 +123,17 @@ export class UserRepository {
         `;
 
         const result = await pool.query(query, [id, ...values]);
+        return result.rows.length ? result.rows[0] : null;
+    }
+
+    static async updateFirebaseUid(userId: number, firebaseUid: string, fcmToken?: string): Promise<Usuario | null> {
+        if (fcmToken) {
+            const query = 'UPDATE usuarios SET firebase_uid = $1, fcm_token = $2, updated_at = NOW() WHERE id = $3 RETURNING *';
+            const result = await pool.query(query, [firebaseUid, fcmToken, userId]);
+            return result.rows.length ? result.rows[0] : null;
+        }
+        const query = 'UPDATE usuarios SET firebase_uid = $1, updated_at = NOW() WHERE id = $2 RETURNING *';
+        const result = await pool.query(query, [firebaseUid, userId]);
         return result.rows.length ? result.rows[0] : null;
     }
 

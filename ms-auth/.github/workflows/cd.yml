@@ -81,31 +81,11 @@ jobs:
 
       - name: Update Kubeconfig
         run: |
-          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }}
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
 
       - name: Apply namespace
         run: |
           kubectl create namespace $K8S_NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Create environment secret
-        run: |
-          kubectl create secret generic fococero-env \
-            --from-literal=DB_USER=${{ secrets.DB_USER }} \
-            --from-literal=DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-            --from-literal=DB_HOST=${{ secrets.DB_HOST }} \
-            --from-literal=DB_PORT=${{ secrets.DB_PORT || '5432' }} \
-            --from-literal=FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }} \
-            --from-literal=FIREBASE_CLIENT_EMAIL=${{ secrets.FIREBASE_CLIENT_EMAIL }} \
-            --from-literal=FIREBASE_PRIVATE_KEY="${{ secrets.FIREBASE_PRIVATE_KEY }}" \
-            --from-literal=INTERNAL_SECRET_TOKEN=${{ secrets.INTERNAL_SECRET_TOKEN }} \
-            --from-literal=EUREKA_HOST=${{ secrets.EUREKA_HOST || 'eureka' }} \
-            --from-literal=API_GATEWAY_URL=${{ secrets.API_GATEWAY_URL || 'http://api-gateway:3000' }} \
-            --from-literal=NODE_ENV=production \
-            --from-literal=MULTIMEDIA_SERVICE_URL=${{ secrets.MULTIMEDIA_SERVICE_URL || 'http://ms-multimedia:3005' }} \
-            --from-literal=RABBITMQ_URL=${{ secrets.RABBITMQ_URL }} \
-            --from-literal=JWT_SECRET=${{ secrets.JWT_SECRET }} \
-            -n ${{ env.K8S_NAMESPACE }} \
-            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Deploy to EKS
         env:

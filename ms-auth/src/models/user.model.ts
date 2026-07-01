@@ -8,6 +8,7 @@ export interface Usuario {
     telefono: string;
     email?: string; // Provisto por Firebase
     firebase_uid?: string; // ID único de Firebase (Reemplazó al password)
+    password?: string; // Contraseña hasheada con bcrypt
     
     rol?: UserRole;
     estado?: UserStatus;

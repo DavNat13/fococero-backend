@@ -32,4 +32,7 @@ export const envs = {
         .required()
         .asString()
         .replace(/\\n/g, '\n'),
+
+    // Token secreto para comunicación interna entre microservicios
+    INTERNAL_SECRET_TOKEN: env.get('INTERNAL_SECRET_TOKEN').default('dev-internal-secret').asString(),
 };

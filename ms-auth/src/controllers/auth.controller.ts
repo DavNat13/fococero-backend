@@ -2,6 +2,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
+import { AuthValidator } from '../validators/auth.validator';
 import { AppError } from '../helpers/appError';
 
 export class AuthController {
@@ -22,11 +23,41 @@ export class AuthController {
 
     static async registerFull(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const newUser = await AuthService.registerFullUser(req.body);
+            const result = await AuthService.registerFullUser(req.body);
             res.status(201).json({
                 ok: true,
                 msg: 'Cuenta FocoCero creada con éxito',
-                usuario: newUser,
+                usuario: result.user,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async login(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const result = await AuthService.loginUser(req.body);
+            res.status(200).json({
+                ok: true,
+                msg: 'Inicio de sesión exitoso',
+                usuario: result.user,
+                firebaseToken: result.firebaseToken,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async loginWithGoogle(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+                throw new AppError('Cuerpo de solicitud inválido.', 400);
+            }
+            const result = await AuthService.loginWithGoogle(req.body);
+            res.status(200).json({
+                ok: true,
+                msg: 'Autenticación con Google exitosa',
+                usuario: result.user,
             });
         } catch (error) {
             next(error);
@@ -64,6 +95,86 @@ export class AuthController {
         }
     }
 
+    static async upgradeAccount(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            if (!req.user || !req.user.firebase_uid) {
+                throw new AppError('Usuario no autenticado con Firebase.', 401);
+            }
+            const updated = await AuthService.upgradeAccount(
+                req.user.firebase_uid,
+                req.body.password,
+            );
+            res.status(200).json({ ok: true, msg: 'Contraseña establecida exitosamente', usuario: updated });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async convertToCiudadano(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            if (!req.user || !req.user.firebase_uid) {
+                throw new AppError('Usuario no autenticado con Firebase.', 401);
+            }
+            const result = await AuthService.convertGuestToCitizen(
+                req.user.firebase_uid,
+                req.body.password,
+            );
+            res.status(200).json({
+                ok: true,
+                msg: 'Cuenta convertida a ciudadano exitosamente',
+                usuario: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async getMyStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.id!;
+            const stats = await AuthService.getUserStats(userId);
+            res.status(200).json({ ok: true, ...stats });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async getMyPerfilBrigadista(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.id!;
+            const perfil = await AuthService.getPerfilBrigadista(userId);
+            res.status(200).json({ ok: true, perfil });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async updateMyPerfilBrigadista(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const validation = AuthValidator.validatePerfilBrigadista(req.body);
+            if (!validation.isValid) {
+                throw new AppError(validation.error || 'Datos de perfil inválidos', 400);
+            }
+            const userId = req.user!.id!;
+            const result = await AuthService.updatePerfilBrigadista(userId, req.body);
+            res.status(200).json({
+                ok: true,
+                msg: 'Perfil de brigadista actualizado',
+                perfil: result,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async getMyNotifications(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            res.status(200).json({ ok: true, data: [] });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     // --- 🔴 SECCIÓN: ADMINISTRATIVA ---
     static async getAllUsers(_req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
@@ -76,7 +187,6 @@ export class AuthController {
 
     static async changeRole(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            // ✅ FIX: Casteo explícito a String primitivo
             const targetUserId = parseInt(String(req.params.id), 10);
             if (isNaN(targetUserId) || targetUserId <= 0) {
                 throw new AppError('ID de usuario inválido', 400);
@@ -94,7 +204,6 @@ export class AuthController {
 
     static async changeStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            // ✅ FIX: Casteo explícito a String primitivo
             const targetUserId = parseInt(String(req.params.id), 10);
             if (isNaN(targetUserId) || targetUserId <= 0) {
                 throw new AppError('ID de usuario inválido', 400);
@@ -112,7 +221,6 @@ export class AuthController {
 
     static async deleteUser(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            // ✅ FIX: Casteo explícito a String primitivo
             const targetUserId = parseInt(String(req.params.id), 10);
             if (isNaN(targetUserId) || targetUserId <= 0) {
                 throw new AppError('ID de usuario inválido', 400);
@@ -121,6 +229,23 @@ export class AuthController {
             res.status(200).json({
                 ok: true,
                 msg: `Usuario con ID ${targetUserId} eliminado definitivamente.`,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    static async adminCreateBrigadista(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const targetUserId = parseInt(String(req.params.id), 10);
+            if (isNaN(targetUserId) || targetUserId <= 0) {
+                throw new AppError('ID de usuario inválido', 400);
+            }
+            const result = await AuthService.adminCreateBrigadista(targetUserId, req.body);
+            res.status(201).json({
+                ok: true,
+                msg: 'Brigadista creado exitosamente',
+                usuario: result,
             });
         } catch (error) {
             next(error);

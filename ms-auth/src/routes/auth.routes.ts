@@ -11,6 +11,8 @@ const router = Router();
 // ============================================================================
 // Rutas de entrada al sistema FocoCero. No requieren token previo.
 
+router.post('/login', AuthController.login);
+router.post('/google', AuthController.loginWithGoogle);
 router.post('/register-guest', AuthController.registerGuest);
 router.post('/register-full', AuthController.registerFull);
 
