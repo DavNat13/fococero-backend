@@ -1,5 +1,7 @@
 import { CorsOptions } from "cors";
 import { envs } from "./envs";
+import { logger } from "./logger";
+import type { Request, Response, NextFunction } from "express";
 
 // Lista blanca dinámica basada en envs
 const allowedOrigins = envs.CORS_ORIGINS.split(",").map((origin) =>
@@ -8,15 +10,13 @@ const allowedOrigins = envs.CORS_ORIGINS.split(",").map((origin) =>
 
 export const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
-    // Permitir si no hay origin (como herramientas de testeo/Postman) o si está en la lista blanca
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(
-        new Error(
-          `🚫 Bloqueado por seguridad (CORS): Origen ${origin} no permitido.`,
-        ),
+      logger.warn(
+        `🚫 [CORS] Origen bloqueado: "${origin}". Permitidos: ${allowedOrigins.join(", ")}`,
       );
+      callback(null, false);
     }
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -25,7 +25,26 @@ export const corsOptions: CorsOptions = {
     "Authorization",
     "X-Requested-With",
     "x-trace-id",
+    "x-correlation-id",
+    "x-internal-token",
   ],
   credentials: true,
-  maxAge: 86400, // Cache de preflight de 24 horas para mejorar rendimiento
+  maxAge: 86400,
+};
+
+export const corsErrorHandler = (
+  err: Error,
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
+  if (err.message.startsWith("🚫 Bloqueado por seguridad (CORS)")) {
+    res.status(403).json({
+      success: false,
+      message:
+        "Acceso denegado por política de CORS. El origen no está autorizado.",
+    });
+    return;
+  }
+  next(err);
 };

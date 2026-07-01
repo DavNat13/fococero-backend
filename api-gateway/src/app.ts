@@ -9,7 +9,7 @@ import swaggerUi from "swagger-ui-express";
 
 // --- Importaciones Internas ---
 import { envs } from "./config/envs";
-import { corsOptions } from "./config/cors";
+import { corsOptions, corsErrorHandler } from "./config/cors";
 import { morganLogger, logger } from "./config/logger";
 import { globalLimiter } from "./middlewares/rateLimiter";
 import { errorHandler } from "./middlewares/errorHandler";
@@ -65,6 +65,7 @@ app.use(appRoutes);
 // ============================================================================
 // 🚨 GESTIÓN DE ERRORES GLOBALES
 // ============================================================================
+app.use(corsErrorHandler);
 app.use(errorHandler);
 
 export default app;

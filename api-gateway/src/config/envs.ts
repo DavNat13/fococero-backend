@@ -42,6 +42,9 @@ const envSchema = z.object({
     .string()
     .default("http://localhost:5173,http://localhost:3000"),
 
+  // Redis para rate limiting
+  REDIS_URL: z.string().default("redis://redis-fococero:6379"),
+
   // Seguridad: Firebase Admin SDK
   FIREBASE_PROJECT_ID: z.string().min(1).default("test-project"),
   FIREBASE_CLIENT_EMAIL: z.string().email().default("test@test.com"),
